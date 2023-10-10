@@ -2,6 +2,8 @@
 #ifndef EWN_HPP
 #define EWN_HPP
 
+#include <string>
+
 namespace ewn {
 
 const int MAX_ROW = 9;
@@ -29,6 +31,8 @@ class Game {
 
    public:
     Game();
+    Game(const Game& rhs);
+
     void scan_board();
     void print_board();
     void print_history();
@@ -37,6 +41,11 @@ class Game {
     int move_gen_all(int *moves);
     void do_move(int move);
     void undo();
+
+    u_int64_t hash();
+    int kingDistance(int piece);
+    int currentCost();
+
 
     int heuristic();
     int heuristic2();

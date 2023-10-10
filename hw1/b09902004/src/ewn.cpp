@@ -1,7 +1,11 @@
 // Modified from src/ewn.cpp in hw1_verifier
+#include <algorithm>
+#include <string>
+
 #include <cstdio>
-#include <cstdlib>
+// #include <cstdlib>
 #include <cstring>
+
 #include "ewn.hpp"
 
 namespace ewn {
@@ -24,6 +28,19 @@ Game::Game() {
     n_plies = 0;
 }
 
+Game::Game(const Game& rhs) {
+    this->row = rhs.row;
+    this->col = rhs.col;
+    std::memcpy(this->board, rhs.board, MAX_ROW*MAX_COL*sizeof(int));
+    std::memcpy(this->pos, rhs.pos, (MAX_PIECES+2)*sizeof(int));
+    std::memcpy(this->dice_seq, rhs.dice_seq, (MAX_PERIOD)*sizeof(int));
+    this->period = rhs.period;
+    this->goal_piece = rhs.goal_piece;
+    std::memcpy(this->history, rhs.history, (MAX_PLIES)*sizeof(int));
+    this->n_plies = rhs.n_plies;
+}
+
+
 void set_dir_value() {
     dir_value[0] = -COL - 1;
     dir_value[1] = -COL;
@@ -36,16 +53,18 @@ void set_dir_value() {
 }
 
 void Game::scan_board() {
-    scanf(" %d %d", &row, &col);
-    for (int i = 0; i < row * col; i++) {
-        scanf(" %d", &board[i]);
-        if (board[i] > 0) pos[board[i]] = i;
+    scanf(" %d %d", &this->row, &this->col);
+    for (int i = 0; i < this->row * this->col; i++) {
+        scanf(" %d", &this->board[i]);
+        if (this->board[i] > 0) {
+            this->pos[this->board[i]] = i;
+        }
     }
-    scanf(" %d", &period);
-    for (int i = 0; i < period; i++) {
-        scanf(" %d", &dice_seq[i]);
+    scanf(" %d", &this->period);
+    for (int i = 0; i < this->period; i++) {
+        scanf(" %d", &this->dice_seq[i]);
     }
-    scanf(" %d", &goal_piece);
+    scanf(" %d", &this->goal_piece);
 
     // initialize global variables
     ROW = row;
@@ -54,28 +73,28 @@ void Game::scan_board() {
 }
 
 void Game::print_board() {
-    for (int i = 0; i < row; i++) {
-        for (int j = 0; j < col; j++) {
-            fprintf(stderr, "%4d", board[i * col + j]);
+    for (int i = 0; i < this->row; i++) {
+        for (int j = 0; j < this->col; j++) {
+            fprintf(stderr, "%4d", this->board[i * this->col + j]);
         }
         fprintf(stderr, "\n");
     }
 }
 
 void Game::print_history() {
-    printf("%d\n", n_plies);
-    for (int i=0; i<n_plies; i++) {
-        int piece = (history[i] >> 4) & 0xf;
-        int dir = history[i] & 0xf;
+    printf("%d\n", this->n_plies);
+    for (int i = 0; i < this->n_plies; i++) {
+        int piece = (this->history[i] >> 4) & 0xf;
+        int dir = (this->history[i]) & 0xf;
         printf("%d %d\n", piece, dir);
     }
 }
 
 bool Game::is_goal() {
-    if (goal_piece == 0) {
-        return board[row * col - 1] > 0;
+    if (this->goal_piece == 0) {
+        return this->board[this->row*this->col - 1] > 0;
     } else {
-        return board[row * col - 1] == goal_piece;
+        return this->board[this->row*this->col - 1] == this->goal_piece;
     }
     return false;
 }
@@ -128,19 +147,26 @@ int move_gen2(int *moves, int piece, int location) {
 
 int Game::move_gen_all(int *moves) {
     int count = 0;
-    int dice = dice_seq[n_plies % period];
-    if (pos[dice] == -1) {
+    int dice = this->dice_seq[this->n_plies % this->period];
+    if (this->pos[dice] == -1) {
         int small = dice - 1;
         int large = dice + 1;
 
-        while (pos[small] == -1) small--;
-        while (pos[large] == -1) large++;
+        while (this->pos[small] == -1) {
+            small--;
+        }
+        while (this->pos[large] == -1) {
+            large++;
+        }
 
-        if (small >= 1) count += move_gen2(moves, small, pos[small]);
-        if (large <= MAX_PIECES)
-            count += move_gen2(moves + count, large, pos[large]);
+        if (small >= 1) {
+            count += move_gen2(moves, small, this->pos[small]);
+        }
+        if (large <= MAX_PIECES) {
+            count += move_gen2(moves + count, large, this->pos[large]);
+        }
     } else {
-        count = move_gen2(moves, dice, pos[dice]);
+        count = move_gen2(moves, dice, this->pos[dice]);
     }
     return count;
 }
@@ -148,42 +174,78 @@ int Game::move_gen_all(int *moves) {
 void Game::do_move(int move) {
     int piece = move >> 4;
     int direction = move & 15;
-    int dst = pos[piece] + dir_value[direction];
+    int dst = this->pos[piece] + dir_value[direction];
 
-    if (n_plies == MAX_PLIES) {
+    if (this->n_plies == MAX_PLIES) {
         fprintf(stderr, "cannot do anymore moves\n");
         exit(1);
     }
-    if (board[dst] > 0) {
-        pos[board[dst]] = -1;
-        move |= board[dst] << 8;
+    if (this->board[dst] > 0) { // eats a piece
+        this->pos[this->board[dst]] = -1;
+        move |= this->board[dst] << 8;
     }
-    board[pos[piece]] = 0;
-    board[dst] = piece;
-    pos[piece] = dst;
-    history[n_plies++] = move;
+    this->board[this->pos[piece]] = 0;
+    this->board[dst] = piece;
+    this->pos[piece] = dst;
+    this->history[this->n_plies++] = move;
 }
 
 void Game::undo() {
-    if (n_plies == 0) {
+    if (this->n_plies == 0) {
         fprintf(stderr, "no history\n");
         exit(1);
     }
 
-    int move = history[--n_plies];
+    int move = this->history[--this->n_plies];
     int eaten_piece = move >> 8;
     int piece = (move & 255) >> 4;
     int direction = move & 15;
-    int dst = pos[piece] - dir_value[direction];
+    int dst = this->pos[piece] - dir_value[direction];
 
     if (eaten_piece > 0) {
-        board[pos[piece]] = eaten_piece;
-        pos[eaten_piece] = pos[piece];
+        this->board[this->pos[piece]] = eaten_piece;
+        this->pos[eaten_piece] = this->pos[piece];
     } else {
-        board[pos[piece]] = 0;
+        this->board[this->pos[piece]] = 0;
     }
-    board[dst] = piece;
-    pos[piece] = dst;
+    this->board[dst] = piece;
+    this->pos[piece] = dst;
+}
+
+// Position should be in [-1, 81], so 7 bits is enough to represent 1 piece
+// we can fit all 6 pieces inside one 64-bit integer
+u_int64_t Game::hash() {
+    u_int64_t h = 0;
+    for (int i=1; i<=6; i++) {
+        h |= (this->pos[i]+1) << 7*(i-1);
+    }
+    return h;
+}
+
+int Game::kingDistance(int piece) {
+    if (this->pos[piece] == -1) { // piece eaten, can't make it
+        return (MAX_ROW+1)*(MAX_COL+1)*2;
+    }
+    int x = this->pos[piece] % this->col;
+    int y = this->pos[piece] / this->col;
+    return std::max((this->col-1)-x, (this->row-1)-y);
+}
+
+int Game::currentCost() {
+    return this->n_plies;
+}
+
+int Game::heuristic() {
+    if (this->goal_piece == 0) {
+        int min_distance = __INT32_MAX__;
+        for (int i=1; i<=6; i++) {
+            min_distance = std::min(min_distance, this->kingDistance(i));
+        }
+        return min_distance;
+
+    } else {
+        return this->kingDistance(this->goal_piece);
+    }
 }
 
 }  // namespace ewn
