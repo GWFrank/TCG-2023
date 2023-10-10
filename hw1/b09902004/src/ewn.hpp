@@ -32,6 +32,7 @@ class Game {
    public:
     Game();
     Game(const Game& rhs);
+    Game& operator=(const Game& rhs);
 
     void scan_board();
     void print_board();
@@ -43,6 +44,7 @@ class Game {
     void undo();
 
     u_int64_t hash();
+    bool isDoable();
     int kingDistance(int piece);
     int currentCost();
 

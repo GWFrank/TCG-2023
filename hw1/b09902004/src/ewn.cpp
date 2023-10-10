@@ -28,7 +28,7 @@ Game::Game() {
     n_plies = 0;
 }
 
-Game::Game(const Game& rhs) {
+Game::Game(const Game &rhs) {
     this->row = rhs.row;
     this->col = rhs.col;
     std::memcpy(this->board, rhs.board, MAX_ROW*MAX_COL*sizeof(int));
@@ -38,6 +38,22 @@ Game::Game(const Game& rhs) {
     this->goal_piece = rhs.goal_piece;
     std::memcpy(this->history, rhs.history, (MAX_PLIES)*sizeof(int));
     this->n_plies = rhs.n_plies;
+}
+
+Game& Game::operator=(const Game &rhs) {
+    if (this == &rhs) {
+        return *this;
+    }
+    this->row = rhs.row;
+    this->col = rhs.col;
+    std::memcpy(this->board, rhs.board, MAX_ROW*MAX_COL*sizeof(int));
+    std::memcpy(this->pos, rhs.pos, (MAX_PIECES+2)*sizeof(int));
+    std::memcpy(this->dice_seq, rhs.dice_seq, (MAX_PERIOD)*sizeof(int));
+    this->period = rhs.period;
+    this->goal_piece = rhs.goal_piece;
+    std::memcpy(this->history, rhs.history, (MAX_PLIES)*sizeof(int));
+    this->n_plies = rhs.n_plies;
+    return *this;
 }
 
 
@@ -79,6 +95,10 @@ void Game::print_board() {
         }
         fprintf(stderr, "\n");
     }
+    for (int i=1; i<=6; i++) {
+        fprintf(stderr, "piece %d@%d ", i, pos[i]);
+    }
+    fprintf(stderr, "\n");
 }
 
 void Game::print_history() {
@@ -217,9 +237,17 @@ void Game::undo() {
 u_int64_t Game::hash() {
     u_int64_t h = 0;
     for (int i=1; i<=6; i++) {
-        h |= (this->pos[i]+1) << 7*(i-1);
+        u_int64_t coord = 1 + this->pos[i];
+        h |= (coord) << (7*(i-1));
     }
     return h;
+}
+
+bool Game::isDoable() {
+    if (this->goal_piece == 0) {
+        return true;
+    }
+    return this->pos[goal_piece] != -1;
 }
 
 int Game::kingDistance(int piece) {

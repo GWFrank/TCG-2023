@@ -65,8 +65,12 @@ void AStar(ewn::Game initial_state) {
         int move_count = state.move_gen_all(moves);
         for (int idx = 0; idx < move_count; idx++) {
             ewn::Game next_state = state;
+
             next_state.do_move(moves[idx]);
-            int next_state_hash = next_state.hash();
+            if (!next_state.isDoable()) {
+                continue;
+            }
+            u_int64_t next_state_hash = next_state.hash();
             if (seen_states.count(next_state_hash) != 0) {
                 continue;
             }
