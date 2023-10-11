@@ -94,9 +94,9 @@ void Game::printBoard() {
         }
         fprintf(stderr, "\n");
     }
-    for (int i=1; i<=6; i++) {
-        fprintf(stderr, "piece %d@%d ", i, pos[i]);
-    }
+    // for (int i=1; i<=6; i++) {
+    //     fprintf(stderr, "piece %d@%d ", i, pos[i]);
+    // }
     fprintf(stderr, "\n");
 }
 
@@ -250,9 +250,6 @@ bool Game::isDoable() {
 }
 
 bool Game::isImproving(int move) {
-    if (this->goal_piece != 0) {
-        return true;
-    }
     // An optimal move should make the piece closer to the goal or other pieces
     int piece = (move >> 4) & 0xf;
     int direction = move & 0xf;
@@ -266,15 +263,15 @@ bool Game::isImproving(int move) {
             continue;
         }
         int i_x = this->pos[i]%this->col, i_y = this->pos[i]/this->col;
-        int old_dist = std::max(i_x-x, i_y-y);
-        int new_dist = std::max(i_x-dst_x, i_y-dst_y);
+        int old_dist = std::max(std::abs(i_x-x), std::abs(i_y-y));
+        int new_dist = std::max(std::abs(i_x-dst_x), std::abs(i_y-dst_y));
         if (new_dist < old_dist) {
             return true;
         }
     }
     // Check if getting closer to goal square
-    int old_dist = std::max((this->col-1)-x, (this->row-1)-y);
-    int new_dist = std::max((this->col-1)-dst_x, (this->row-1)-dst_y);
+    int old_dist = std::max(std::abs((this->col-1)-x), std::abs((this->row-1)-y));
+    int new_dist = std::max(std::abs((this->col-1)-dst_x), std::abs((this->row-1)-dst_y));
     if (new_dist < old_dist) {
         return true;
     }
@@ -291,7 +288,7 @@ int Game::kingDistance(int piece) {
     }
     int x = this->pos[piece] % this->col;
     int y = this->pos[piece] / this->col;
-    return std::max((this->col-1)-x, (this->row-1)-y);
+    return std::max(std::abs((this->col-1)-x), std::abs((this->row-1)-y));
 }
 
 int Game::currentCost() {
