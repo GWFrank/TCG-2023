@@ -3,7 +3,6 @@
 #include <string>
 
 #include <cstdio>
-// #include <cstdlib>
 #include <cstring>
 
 #include "ewn.hpp"
@@ -68,7 +67,7 @@ void set_dir_value() {
     dir_value[7] = COL + 1;
 }
 
-void Game::scan_board() {
+void Game::scanBoard() {
     scanf(" %d %d", &this->row, &this->col);
     for (int i = 0; i < this->row * this->col; i++) {
         scanf(" %d", &this->board[i]);
@@ -88,7 +87,7 @@ void Game::scan_board() {
     set_dir_value();
 }
 
-void Game::print_board() {
+void Game::printBoard() {
     for (int i = 0; i < this->row; i++) {
         for (int j = 0; j < this->col; j++) {
             fprintf(stderr, "%4d", this->board[i * this->col + j]);
@@ -101,7 +100,7 @@ void Game::print_board() {
     fprintf(stderr, "\n");
 }
 
-void Game::print_history() {
+void Game::printHistory() {
     printf("%d\n", this->n_plies);
     for (int i = 0; i < this->n_plies; i++) {
         int piece = (this->history[i] >> 4) & 0xf;
@@ -110,7 +109,7 @@ void Game::print_history() {
     }
 }
 
-bool Game::is_goal() {
+bool Game::isGoal() {
     if (this->goal_piece == 0) {
         return this->board[this->row*this->col - 1] > 0;
     } else {
@@ -165,7 +164,7 @@ int move_gen2(int *moves, int piece, int location) {
     return count;
 }
 
-int Game::move_gen_all(int *moves) {
+int Game::generateAllMoves(int *moves) {
     int count = 0;
     int dice = this->dice_seq[this->n_plies % this->period];
     if (this->pos[dice] == -1) {
@@ -191,7 +190,7 @@ int Game::move_gen_all(int *moves) {
     return count;
 }
 
-void Game::do_move(int move) {
+void Game::doMove(int move) {
     int piece = move >> 4;
     int direction = move & 15;
     int dst = this->pos[piece] + dir_value[direction];
@@ -248,6 +247,42 @@ bool Game::isDoable() {
         return true;
     }
     return this->pos[goal_piece] != -1;
+}
+
+bool Game::isImproving(int move) {
+    if (this->goal_piece != 0) {
+        return true;
+    }
+    // An optimal move should make the piece closer to the goal or other pieces
+    int piece = (move >> 4) & 0xf;
+    int direction = move & 0xf;
+    int dst = this->pos[piece] + dir_value[direction];
+    int x = this->pos[piece]%this->col, y = this->pos[piece]/this->col;
+    int dst_x = dst%this->col, dst_y = dst/this->col;
+
+    // Check if getting closer to any piece
+    for (int i=1; i<=6; i++) {
+        if (i == piece || this->pos[piece] == -1) {
+            continue;
+        }
+        int i_x = this->pos[i]%this->col, i_y = this->pos[i]/this->col;
+        int old_dist = std::max(i_x-x, i_y-y);
+        int new_dist = std::max(i_x-dst_x, i_y-dst_y);
+        if (new_dist < old_dist) {
+            return true;
+        }
+    }
+    // Check if getting closer to goal square
+    int old_dist = std::max((this->col-1)-x, (this->row-1)-y);
+    int new_dist = std::max((this->col-1)-dst_x, (this->row-1)-dst_y);
+    if (new_dist < old_dist) {
+        return true;
+    }
+    return false;
+}
+
+bool Game::hasGoalPiece() {
+    return this->goal_piece != 0;
 }
 
 int Game::kingDistance(int piece) {

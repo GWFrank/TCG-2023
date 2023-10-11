@@ -14,10 +14,10 @@ inline void PrintDummyAnswer() {
 // Returns whether a goal state is reached
 bool DFSLimit(ewn::Game &game, int limit) {
     int moves[16]; // at most can move 2 pieces in 8 directions each
-    int move_count = game.move_gen_all(moves);
+    int move_count = game.generateAllMoves(moves);
     for (int idx = 0; idx < move_count; idx++) {
-        game.do_move(moves[idx]);
-        if (game.is_goal()) {
+        game.doMove(moves[idx]);
+        if (game.isGoal()) {
             return true;
         }
         if (limit > 1 && DFSLimit(game, limit-1)) {
@@ -33,7 +33,7 @@ void DFID(ewn::Game &game) {
     for (int limit = 1; limit < quit_limit; limit++) {
         bool found = DFSLimit(game, limit);
         if (found) {
-            game.print_history();
+            game.printHistory();
             return;
         }
     }
@@ -56,18 +56,20 @@ void AStar(ewn::Game initial_state) {
         ewn::Game state = fringe.top();
         fringe.pop();
 
-        if (state.is_goal()) {
-            state.print_history();
+        if (state.isGoal()) {
+            state.printHistory();
             return;
         }
 
         int moves[16];
-        int move_count = state.move_gen_all(moves);
+        int move_count = state.generateAllMoves(moves);
         for (int idx = 0; idx < move_count; idx++) {
             ewn::Game next_state = state;
-
-            next_state.do_move(moves[idx]);
+            next_state.doMove(moves[idx]);
             if (!next_state.isDoable()) {
+                continue;
+            }
+            if (!state.isImproving(moves[idx])) {
                 continue;
             }
             u_int64_t next_state_hash = next_state.hash();
@@ -85,7 +87,7 @@ void AStar(ewn::Game initial_state) {
 
 int main() {
     ewn::Game game;
-    game.scan_board();
+    game.scanBoard();
     // DFID(game);
     AStar(game);
 

@@ -34,24 +34,25 @@ class Game {
     Game(const Game& rhs);
     Game& operator=(const Game& rhs);
 
-    void scan_board();
-    void print_board();
-    void print_history();
-    bool is_goal();
+    void scanBoard();
+    void printBoard();
+    void printHistory();
+    bool isGoal();
 
-    int move_gen_all(int *moves);
-    void do_move(int move);
+    int generateAllMoves(int *moves);
+    void doMove(int move);
     void undo();
 
     u_int64_t hash();
     bool isDoable();
+    bool isImproving(int move);
+    bool hasGoalPiece();
     int kingDistance(int piece);
     int currentCost();
 
 
     int heuristic();
-    int heuristic2();
-    void sort_move(int *moves, int n_move);
+    void sortMove(int *moves, int n_move);
 };
 
 }  // namespace ewn

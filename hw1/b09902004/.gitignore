@@ -1,2 +1,7 @@
+# binaries
 solve
 solve_debug
+solve_prof
+
+# profiler output
+gmon.out
