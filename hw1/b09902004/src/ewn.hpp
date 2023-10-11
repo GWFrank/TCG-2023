@@ -2,7 +2,7 @@
 #ifndef EWN_HPP
 #define EWN_HPP
 
-#include <string>
+#include <cstdint>
 
 namespace ewn {
 
@@ -39,20 +39,19 @@ class Game {
     void printHistory();
     bool isGoal();
 
-    int generateAllMoves(int *moves);
+    int generateAllMoves(int* moves);
     void doMove(int move);
     void undo();
 
-    u_int64_t hash();
+    uint64_t hash();
     bool isDoable();
     bool isImproving(int move);
     bool hasGoalPiece();
     int kingDistance(int piece);
     int currentCost();
 
-
     int heuristic();
-    void sortMove(int *moves, int n_move);
+    void sortMove(int* moves, int n_move);
 };
 
 }  // namespace ewn

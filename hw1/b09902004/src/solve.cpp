@@ -4,23 +4,22 @@
 #include <string>
 
 #include <cstdio>
+#include <cstdint>
 
 #include "ewn.hpp"
 
-inline void PrintDummyAnswer() {
-    printf("0\n");
-}
+inline void PrintDummyAnswer() { printf("0\n"); }
 
 // Returns whether a goal state is reached
 bool DFSLimit(ewn::Game &game, int limit) {
-    int moves[16]; // at most can move 2 pieces in 8 directions each
+    int moves[16];  // at most can move 2 pieces in 8 directions each
     int move_count = game.generateAllMoves(moves);
     for (int idx = 0; idx < move_count; idx++) {
         game.doMove(moves[idx]);
         if (game.isGoal()) {
             return true;
         }
-        if (limit > 1 && DFSLimit(game, limit-1)) {
+        if (limit > 1 && DFSLimit(game, limit - 1)) {
             return true;
         }
         game.undo();
@@ -29,7 +28,7 @@ bool DFSLimit(ewn::Game &game, int limit) {
 }
 
 void DFID(ewn::Game &game) {
-    int quit_limit = (ewn::COL-1) * (ewn::ROW-1) * 6;
+    int quit_limit = (ewn::COL - 1) * (ewn::ROW - 1) * 6;
     for (int limit = 1; limit < quit_limit; limit++) {
         bool found = DFSLimit(game, limit);
         if (found) {
@@ -41,15 +40,16 @@ void DFID(ewn::Game &game) {
 }
 
 class CompareH1 {
-    public:
+   public:
     bool operator()(ewn::Game &game1, ewn::Game &game2) {
-        return game1.currentCost()+game1.heuristic() > game2.currentCost()+game2.heuristic();
+        return game1.currentCost() + game1.heuristic() >
+               game2.currentCost() + game2.heuristic();
     }
 };
 
 void AStar(ewn::Game initial_state) {
     std::priority_queue<ewn::Game, std::vector<ewn::Game>, CompareH1> fringe;
-    std::unordered_set<u_int64_t> seen_states;
+    std::unordered_set<uint64_t> seen_states;
 
     fringe.push(initial_state);
     while (!fringe.empty()) {
@@ -72,7 +72,7 @@ void AStar(ewn::Game initial_state) {
             if (!state.isImproving(moves[idx])) {
                 continue;
             }
-            u_int64_t next_state_hash = next_state.hash();
+            uint64_t next_state_hash = next_state.hash();
             if (seen_states.count(next_state_hash) != 0) {
                 continue;
             }

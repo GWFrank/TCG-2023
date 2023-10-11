@@ -3,6 +3,7 @@
 #include <string>
 
 #include <cstdio>
+#include <cstdint>
 #include <cstring>
 
 #include "ewn.hpp"
@@ -30,31 +31,30 @@ Game::Game() {
 Game::Game(const Game &rhs) {
     this->row = rhs.row;
     this->col = rhs.col;
-    std::memcpy(this->board, rhs.board, MAX_ROW*MAX_COL*sizeof(int));
-    std::memcpy(this->pos, rhs.pos, (MAX_PIECES+2)*sizeof(int));
-    std::memcpy(this->dice_seq, rhs.dice_seq, (MAX_PERIOD)*sizeof(int));
+    std::memcpy(this->board, rhs.board, MAX_ROW * MAX_COL * sizeof(int));
+    std::memcpy(this->pos, rhs.pos, (MAX_PIECES + 2) * sizeof(int));
+    std::memcpy(this->dice_seq, rhs.dice_seq, (MAX_PERIOD) * sizeof(int));
     this->period = rhs.period;
     this->goal_piece = rhs.goal_piece;
-    std::memcpy(this->history, rhs.history, (MAX_PLIES)*sizeof(int));
+    std::memcpy(this->history, rhs.history, (MAX_PLIES) * sizeof(int));
     this->n_plies = rhs.n_plies;
 }
 
-Game& Game::operator=(const Game &rhs) {
+Game &Game::operator=(const Game &rhs) {
     if (this == &rhs) {
         return *this;
     }
     this->row = rhs.row;
     this->col = rhs.col;
-    std::memcpy(this->board, rhs.board, MAX_ROW*MAX_COL*sizeof(int));
-    std::memcpy(this->pos, rhs.pos, (MAX_PIECES+2)*sizeof(int));
-    std::memcpy(this->dice_seq, rhs.dice_seq, (MAX_PERIOD)*sizeof(int));
+    std::memcpy(this->board, rhs.board, MAX_ROW * MAX_COL * sizeof(int));
+    std::memcpy(this->pos, rhs.pos, (MAX_PIECES + 2) * sizeof(int));
+    std::memcpy(this->dice_seq, rhs.dice_seq, (MAX_PERIOD) * sizeof(int));
     this->period = rhs.period;
     this->goal_piece = rhs.goal_piece;
-    std::memcpy(this->history, rhs.history, (MAX_PLIES)*sizeof(int));
+    std::memcpy(this->history, rhs.history, (MAX_PLIES) * sizeof(int));
     this->n_plies = rhs.n_plies;
     return *this;
 }
-
 
 void set_dir_value() {
     dir_value[0] = -COL - 1;
@@ -111,9 +111,9 @@ void Game::printHistory() {
 
 bool Game::isGoal() {
     if (this->goal_piece == 0) {
-        return this->board[this->row*this->col - 1] > 0;
+        return this->board[this->row * this->col - 1] > 0;
     } else {
-        return this->board[this->row*this->col - 1] == this->goal_piece;
+        return this->board[this->row * this->col - 1] == this->goal_piece;
     }
     return false;
 }
@@ -199,7 +199,7 @@ void Game::doMove(int move) {
         fprintf(stderr, "cannot do anymore moves\n");
         exit(1);
     }
-    if (this->board[dst] > 0) { // eats a piece
+    if (this->board[dst] > 0) {  // eats a piece
         this->pos[this->board[dst]] = -1;
         move |= this->board[dst] << 8;
     }
@@ -233,11 +233,11 @@ void Game::undo() {
 
 // Position should be in [-1, 81], so 7 bits is enough to represent 1 piece
 // we can fit all 6 pieces inside one 64-bit integer
-u_int64_t Game::hash() {
-    u_int64_t h = 0;
-    for (int i=1; i<=6; i++) {
-        u_int64_t coord = 1 + this->pos[i];
-        h |= (coord) << (7*(i-1));
+uint64_t Game::hash() {
+    uint64_t h = 0;
+    for (int i = 1; i <= 6; i++) {
+        uint64_t coord = 1 + this->pos[i];
+        h |= (coord) << (7 * (i - 1));
     }
     return h;
 }
@@ -254,51 +254,50 @@ bool Game::isImproving(int move) {
     int piece = (move >> 4) & 0xf;
     int direction = move & 0xf;
     int dst = this->pos[piece] + dir_value[direction];
-    int x = this->pos[piece]%this->col, y = this->pos[piece]/this->col;
-    int dst_x = dst%this->col, dst_y = dst/this->col;
+    int x = this->pos[piece] % this->col, y = this->pos[piece] / this->col;
+    int dst_x = dst % this->col, dst_y = dst / this->col;
 
     // Check if getting closer to any piece
-    for (int i=1; i<=6; i++) {
+    for (int i = 1; i <= 6; i++) {
         if (i == piece || this->pos[piece] == -1) {
             continue;
         }
-        int i_x = this->pos[i]%this->col, i_y = this->pos[i]/this->col;
-        int old_dist = std::max(std::abs(i_x-x), std::abs(i_y-y));
-        int new_dist = std::max(std::abs(i_x-dst_x), std::abs(i_y-dst_y));
+        int i_x = this->pos[i] % this->col, i_y = this->pos[i] / this->col;
+        int old_dist = std::max(std::abs(i_x - x), std::abs(i_y - y));
+        int new_dist = std::max(std::abs(i_x - dst_x), std::abs(i_y - dst_y));
         if (new_dist < old_dist) {
             return true;
         }
     }
     // Check if getting closer to goal square
-    int old_dist = std::max(std::abs((this->col-1)-x), std::abs((this->row-1)-y));
-    int new_dist = std::max(std::abs((this->col-1)-dst_x), std::abs((this->row-1)-dst_y));
+    int old_dist =
+        std::max(std::abs((this->col - 1) - x), std::abs((this->row - 1) - y));
+    int new_dist = std::max(std::abs((this->col - 1) - dst_x),
+                            std::abs((this->row - 1) - dst_y));
     if (new_dist < old_dist) {
         return true;
     }
     return false;
 }
 
-bool Game::hasGoalPiece() {
-    return this->goal_piece != 0;
-}
+bool Game::hasGoalPiece() { return this->goal_piece != 0; }
 
 int Game::kingDistance(int piece) {
-    if (this->pos[piece] == -1) { // piece eaten, can't make it
-        return (MAX_ROW+1)*(MAX_COL+1)*2;
+    if (this->pos[piece] == -1) {  // piece eaten, can't make it
+        return (MAX_ROW + 1) * (MAX_COL + 1) * 2;
     }
     int x = this->pos[piece] % this->col;
     int y = this->pos[piece] / this->col;
-    return std::max(std::abs((this->col-1)-x), std::abs((this->row-1)-y));
+    return std::max(std::abs((this->col - 1) - x),
+                    std::abs((this->row - 1) - y));
 }
 
-int Game::currentCost() {
-    return this->n_plies;
-}
+int Game::currentCost() { return this->n_plies; }
 
 int Game::heuristic() {
     if (this->goal_piece == 0) {
         int min_distance = __INT32_MAX__;
-        for (int i=1; i<=6; i++) {
+        for (int i = 1; i <= 6; i++) {
             min_distance = std::min(min_distance, this->kingDistance(i));
         }
         return min_distance;
