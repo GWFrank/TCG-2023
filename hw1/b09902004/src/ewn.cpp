@@ -1,6 +1,5 @@
 // Modified from src/ewn.cpp in hw1_verifier
 #include <algorithm>
-#include <string>
 
 #include <cstdio>
 #include <cstdint>
@@ -94,9 +93,6 @@ void Game::printBoard() {
         }
         fprintf(stderr, "\n");
     }
-    // for (int i=1; i<=6; i++) {
-    //     fprintf(stderr, "piece %d@%d ", i, pos[i]);
-    // }
     fprintf(stderr, "\n");
 }
 
@@ -236,8 +232,7 @@ void Game::undo() {
 uint64_t Game::hash() {
     uint64_t h = 0;
     for (int i = 1; i <= 6; i++) {
-        uint64_t coord = 1 + this->pos[i];
-        h |= (coord) << (7 * (i - 1));
+        h |= (this->pos[i] + 1) << (7 * (i - 1));
     }
     return h;
 }
@@ -279,8 +274,6 @@ bool Game::isImproving(int move) {
     }
     return false;
 }
-
-bool Game::hasGoalPiece() { return this->goal_piece != 0; }
 
 int Game::kingDistance(int piece) {
     if (this->pos[piece] == -1) {  // piece eaten, can't make it

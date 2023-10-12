@@ -46,7 +46,6 @@ class Game {
     uint64_t hash();
     bool isDoable();
     bool isImproving(int move);
-    bool hasGoalPiece();
     int kingDistance(int piece);
     int currentCost();
 
