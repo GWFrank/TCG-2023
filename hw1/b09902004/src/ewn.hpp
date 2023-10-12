@@ -2,6 +2,9 @@
 #ifndef EWN_HPP
 #define EWN_HPP
 
+#include <algorithm>
+#include <vector>
+
 #include <cstdint>
 
 namespace ewn {
@@ -10,7 +13,7 @@ const int MAX_ROW = 9;
 const int MAX_COL = 9;
 const int MAX_PIECES = 6;
 const int MAX_PERIOD = 18;
-const int MAX_PLIES = 100;
+// const int MAX_PLIES = 54;  // MAX_PIECES * max{MAX_ROW-1, MAX_COL-1}
 const int MAX_MOVES = 16;
 
 // These are initialized after scanning the board
@@ -26,13 +29,15 @@ class Game {
     int period;
     int goal_piece;
 
-    int history[MAX_PLIES];
-    int n_plies;
+    // int history[MAX_PLIES];
+    // int n_plies;
+    std::vector<int> history;
 
    public:
     Game();
     Game(const Game& rhs);
     Game& operator=(const Game& rhs);
+    Game& operator<(const Game& rhs);
 
     void scanBoard();
     void printBoard();
@@ -50,8 +55,18 @@ class Game {
     int currentCost();
 
     int heuristic();
-    void sortMove(int* moves, int n_move);
 };
+
+// inline member function should be put in header files
+
+inline bool Game::isDoable() {
+    if (this->goal_piece == 0) {
+        return true;
+    }
+    return this->pos[this->goal_piece] != -1;
+}
+
+inline int Game::currentCost() { return this->history.size(); }
 
 }  // namespace ewn
 
