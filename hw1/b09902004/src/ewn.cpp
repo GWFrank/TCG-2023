@@ -232,7 +232,7 @@ void Game::undo() {
 uint64_t Game::hash() {
     uint64_t h = 0;
     for (int i = 1; i <= 6; i++) {
-        h |= (this->pos[i] + 1) << (7 * (i - 1));
+        h |= (static_cast<uint64_t>(this->pos[i]) + 1) << (7 * (i - 1));
     }
     return h;
 }
@@ -241,7 +241,7 @@ bool Game::isDoable() {
     if (this->goal_piece == 0) {
         return true;
     }
-    return this->pos[goal_piece] != -1;
+    return this->pos[this->goal_piece] != -1;
 }
 
 bool Game::isImproving(int move) {

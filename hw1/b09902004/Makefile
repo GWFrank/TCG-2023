@@ -1,4 +1,4 @@
-CPPFLAGS = -std=c++11 -O2 -Wall -Wextra
+CPPFLAGS = -std=c++11 -O3 -Wall -Wextra
 DEBUGFLAGS = -std=c++11 -Og -Wall -Wextra
 
 all: solve
