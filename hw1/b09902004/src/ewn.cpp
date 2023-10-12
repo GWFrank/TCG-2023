@@ -249,40 +249,35 @@ bool Game::isImproving(int move) {
     int piece = (move >> 4) & 0xf;
     int direction = move & 0xf;
     int dst = this->pos[piece] + dir_value[direction];
-    int x = this->pos[piece] % this->col, y = this->pos[piece] / this->col;
-    int dst_x = dst % this->col, dst_y = dst / this->col;
 
     // Check if getting closer to any piece
     for (int i = 1; i <= 6; i++) {
         if (i == piece || this->pos[piece] == -1) {
             continue;
         }
-        int i_x = this->pos[i] % this->col, i_y = this->pos[i] / this->col;
-        int old_dist = std::max(std::abs(i_x - x), std::abs(i_y - y));
-        int new_dist = std::max(std::abs(i_x - dst_x), std::abs(i_y - dst_y));
+        int old_dist = this->kingDistance(this->pos[piece], this->pos[i]);
+        int new_dist = this->kingDistance(dst, this->pos[i]);
         if (new_dist < old_dist) {
             return true;
         }
     }
     // Check if getting closer to goal square
     int old_dist =
-        std::max(std::abs((this->col - 1) - x), std::abs((this->row - 1) - y));
-    int new_dist = std::max(std::abs((this->col - 1) - dst_x),
-                            std::abs((this->row - 1) - dst_y));
+        this->kingDistance(this->pos[piece], this->row * this->col - 1);
+    int new_dist = this->kingDistance(dst, this->row * this->col - 1);
     if (new_dist < old_dist) {
         return true;
     }
     return false;
 }
 
-int Game::kingDistance(int piece) {
-    if (this->pos[piece] == -1) {  // piece eaten, can't make it
-        return (MAX_ROW + 1) * (MAX_COL + 1) * 2;
+int Game::kingDistance(int pos_a, int pos_b) {
+    if (pos_a == -1 || pos_b == -1) {  // piece eaten, can't make it
+        return 314159;
     }
-    int x = this->pos[piece] % this->col;
-    int y = this->pos[piece] / this->col;
-    return std::max(std::abs((this->col - 1) - x),
-                    std::abs((this->row - 1) - y));
+    int x_a = pos_a % this->col, y_a = pos_a / this->col;
+    int x_b = pos_b % this->col, y_b = pos_b / this->col;
+    return std::max(std::abs(x_b - x_a), std::abs(y_b - y_a));
 }
 
 int Game::currentCost() { return this->n_plies; }
@@ -291,12 +286,15 @@ int Game::heuristic() {
     if (this->goal_piece == 0) {
         int min_distance = __INT32_MAX__;
         for (int i = 1; i <= 6; i++) {
-            min_distance = std::min(min_distance, this->kingDistance(i));
+            min_distance = std::min(
+                min_distance,
+                this->kingDistance(this->pos[i], this->row * this->col - 1));
         }
         return min_distance;
 
     } else {
-        return this->kingDistance(this->goal_piece);
+        return this->kingDistance(this->pos[this->goal_piece],
+                                  this->row * this->col - 1);
     }
 }
 
