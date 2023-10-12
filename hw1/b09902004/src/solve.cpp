@@ -38,16 +38,8 @@ void DFID(ewn::Game &game) {
     PrintDummyAnswer();
 }
 
-class CompareH1 {
-   public:
-    bool operator()(ewn::Game &game1, ewn::Game &game2) {
-        return game1.currentCost() + game1.heuristic() >
-               game2.currentCost() + game2.heuristic();
-    }
-};
-
 void AStar(ewn::Game initial_state) {
-    std::priority_queue<ewn::Game, std::vector<ewn::Game>, CompareH1> fringe;
+    std::priority_queue<ewn::Game> fringe;
     std::unordered_set<uint64_t> seen_states;
 
     fringe.push(initial_state);
