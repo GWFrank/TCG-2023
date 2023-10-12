@@ -1,5 +1,6 @@
 // Modified from src/ewn.cpp in hw1_verifier
 #include <algorithm>
+#include <vector>
 
 #include <cstdio>
 #include <cstdint>
@@ -24,20 +25,17 @@ Game::Game() : history() {
     }
     period = 0;
     goal_piece = 0;
-    // n_plies = 0;
+    h = -1;
 }
 
 Game::Game(const Game &rhs) : history(rhs.history) {
     this->row = rhs.row;
     this->col = rhs.col;
-    std::memcpy(this->board, rhs.board, MAX_ROW * MAX_COL * sizeof(int));
     std::memcpy(this->pos, rhs.pos, (MAX_PIECES + 2) * sizeof(int));
     std::memcpy(this->dice_seq, rhs.dice_seq, (MAX_PERIOD) * sizeof(int));
     this->period = rhs.period;
     this->goal_piece = rhs.goal_piece;
-    // std::memcpy(this->history, rhs.history, (MAX_PLIES) * sizeof(int));
-    // this->history = rhs.history;
-    // this->n_plies = rhs.n_plies;
+    this->h = rhs.h;
 }
 
 Game &Game::operator=(const Game &rhs) {
@@ -46,15 +44,17 @@ Game &Game::operator=(const Game &rhs) {
     }
     this->row = rhs.row;
     this->col = rhs.col;
-    std::memcpy(this->board, rhs.board, MAX_ROW * MAX_COL * sizeof(int));
     std::memcpy(this->pos, rhs.pos, (MAX_PIECES + 2) * sizeof(int));
     std::memcpy(this->dice_seq, rhs.dice_seq, (MAX_PERIOD) * sizeof(int));
     this->period = rhs.period;
     this->goal_piece = rhs.goal_piece;
-    // std::memcpy(this->history, rhs.history, (MAX_PLIES) * sizeof(int));
     this->history = rhs.history;
-    // this->n_plies = rhs.n_plies;
+    this->h = rhs.h;
     return *this;
+}
+
+bool Game::operator<(const Game &rhs) const {
+    return (this->history.size() + this->h) > (rhs.history.size() + rhs.h);
 }
 
 void set_dir_value() {
@@ -70,10 +70,11 @@ void set_dir_value() {
 
 void Game::scanBoard() {
     scanf(" %d %d", &this->row, &this->col);
+    int piece = -1;
     for (int i = 0; i < this->row * this->col; i++) {
-        scanf(" %d", &this->board[i]);
-        if (this->board[i] > 0) {
-            this->pos[this->board[i]] = i;
+        scanf(" %d", &piece);
+        if (piece > 0) {
+            this->pos[piece] = i;
         }
     }
     scanf(" %d", &this->period);
@@ -86,12 +87,19 @@ void Game::scanBoard() {
     ROW = row;
     COL = col;
     set_dir_value();
+    this->calculateHeuristic();
 }
 
 void Game::printBoard() {
+    std::vector<int> bd(this->row * this->col, 0);
+    for (int i = 1; i <= 6; i++) {
+        if (this->pos[i] != -1) {
+            bd[this->pos[i]] = i;
+        }
+    }
     for (int i = 0; i < this->row; i++) {
         for (int j = 0; j < this->col; j++) {
-            fprintf(stderr, "%4d", this->board[i * this->col + j]);
+            fprintf(stderr, "%4d", bd[i * this->col + j]);
         }
         fprintf(stderr, "\n");
     }
@@ -109,9 +117,14 @@ void Game::printHistory() {
 
 bool Game::isGoal() {
     if (this->goal_piece == 0) {
-        return this->board[this->row * this->col - 1] > 0;
+        for (int i = 1; i <= 6; i++) {
+            if (this->pos[i] == this->row * this->col - 1) {
+                return true;
+            }
+        }
+        return false;
     } else {
-        return this->board[this->row * this->col - 1] == this->goal_piece;
+        return this->pos[goal_piece] == this->row * this->col - 1;
     }
     return false;
 }
@@ -193,31 +206,31 @@ void Game::doMove(int move) {
     int direction = move & 15;
     int dst = this->pos[piece] + dir_value[direction];
 
-    // if (this->history.size() == MAX_PLIES) {
-    //     fprintf(stderr, "cannot do anymore moves\n");
-    //     exit(1);
-    // }
-    if (this->board[dst] > 0) {  // eats a piece
-        this->pos[this->board[dst]] = -1;
-        move |= this->board[dst] << 8;
+    // check if eating a piece
+    for (int i = 1; i <= 6; i++) {
+        if (i == piece) {
+            continue;
+        }
+        if (this->pos[i] == dst) {
+            this->pos[i] = -1;
+            move |= i << 8;
+            break;
+        }
     }
-    this->board[this->pos[piece]] = 0;
-    this->board[dst] = piece;
+
     this->pos[piece] = dst;
     this->history.push_back(move);
-    // this->n_plies++;
-    // this->history[this->n_plies++] = move;
+
+    this->calculateHeuristic();
 }
 
 void Game::undo() {
-    if (this->history.size() == 0) {
+    if (this->history.empty()) {
         fprintf(stderr, "no history\n");
         exit(1);
     }
 
-    // int move = this->history[--this->n_plies];
     int move = this->history.back();
-    // this->n_plies--;
     this->history.pop_back();
 
     int eaten_piece = move >> 8;
@@ -226,12 +239,8 @@ void Game::undo() {
     int dst = this->pos[piece] - dir_value[direction];
 
     if (eaten_piece > 0) {
-        this->board[this->pos[piece]] = eaten_piece;
         this->pos[eaten_piece] = this->pos[piece];
-    } else {
-        this->board[this->pos[piece]] = 0;
     }
-    this->board[dst] = piece;
     this->pos[piece] = dst;
 }
 
@@ -272,18 +281,17 @@ bool Game::isImproving(int move) {
     return false;
 }
 
-int Game::heuristic() {
+void Game::calculateHeuristic() {
     if (this->goal_piece == 0) {
-        int min_distance = 314159;
+        this->h = 314159;
         for (int i = 1; i <= 6; i++) {
-            min_distance = std::min(
-                min_distance,
+            this->h = std::min(
+                this->h,
                 this->kingDistance(this->pos[i], this->row * this->col - 1));
         }
-        return min_distance;
     } else {
-        return this->kingDistance(this->pos[this->goal_piece],
-                                  this->row * this->col - 1);
+        this->h = this->kingDistance(this->pos[this->goal_piece],
+                                     this->row * this->col - 1);
     }
 }
 

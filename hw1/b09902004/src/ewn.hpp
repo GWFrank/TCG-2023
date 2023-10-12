@@ -13,7 +13,6 @@ const int MAX_ROW = 9;
 const int MAX_COL = 9;
 const int MAX_PIECES = 6;
 const int MAX_PERIOD = 18;
-// const int MAX_PLIES = 54;  // MAX_PIECES * max{MAX_ROW-1, MAX_COL-1}
 const int MAX_MOVES = 16;
 
 // These are initialized after scanning the board
@@ -23,21 +22,20 @@ extern int dir_value[8];
 
 class Game {
     int row, col;
-    int board[MAX_ROW * MAX_COL];
     int pos[MAX_PIECES + 2];  // pos[0] and pos[MAX_PIECES + 1] are not used
     int dice_seq[MAX_PERIOD];
     int period;
     int goal_piece;
-
-    // int history[MAX_PLIES];
-    // int n_plies;
     std::vector<int> history;
+    int h;
+
+    void calculateHeuristic();
 
    public:
     Game();
     Game(const Game& rhs);
     Game& operator=(const Game& rhs);
-    Game& operator<(const Game& rhs);
+    bool operator<(const Game& rhs) const;
 
     void scanBoard();
     void printBoard();
@@ -52,9 +50,6 @@ class Game {
     bool isDoable();
     bool isImproving(int move);
     int kingDistance(int pos_a, int pos_b);
-    int currentCost();
-
-    int heuristic();
 };
 
 // inline member function should be put in header files
@@ -65,8 +60,6 @@ inline bool Game::isDoable() {
     }
     return this->pos[this->goal_piece] != -1;
 }
-
-inline int Game::currentCost() { return this->history.size(); }
 
 }  // namespace ewn
 
