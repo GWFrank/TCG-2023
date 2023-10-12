@@ -1,5 +1,5 @@
 CPPFLAGS = -std=c++11 -O3 -Wall -Wextra
-DEBUGFLAGS = -std=c++11 -Og -Wall -Wextra
+DEBUGFLAGS = -std=c++11 -Og -fsanitize=address -Wall -Wextra
 
 all: solve
 
