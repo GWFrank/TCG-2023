@@ -246,10 +246,10 @@ void Game::undo() {
 
 // Position should be in [-1, 81], so 7 bits is enough to represent 1 piece
 // we can fit all 6 pieces inside one 64-bit integer
-uint64_t Game::hash() {
-    uint64_t h = 0;
+hash_t Game::hash() {
+    hash_t h(0);
     for (int i = 1; i <= 6; i++) {
-        h |= (static_cast<uint64_t>(this->pos[i]) + 1) << (7 * (i - 1));
+        h |= static_cast<hash_t>(this->pos[i] + 1) << (7 * (i - 1));
     }
     return h;
 }

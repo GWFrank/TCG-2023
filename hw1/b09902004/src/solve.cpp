@@ -40,7 +40,7 @@ void DFID(ewn::Game &game) {
 
 void AStar(ewn::Game initial_state) {
     std::priority_queue<ewn::Game> fringe;
-    std::unordered_set<uint64_t> seen_states;
+    std::unordered_set<ewn::hash_t> seen_states;
 
     fringe.push(initial_state);
     while (!fringe.empty()) {
@@ -63,7 +63,7 @@ void AStar(ewn::Game initial_state) {
             if (!state.isImproving(moves[idx])) {
                 continue;
             }
-            uint64_t next_state_hash = next_state.hash();
+            ewn::hash_t next_state_hash = next_state.hash();
             if (seen_states.count(next_state_hash) != 0) {
                 continue;
             }

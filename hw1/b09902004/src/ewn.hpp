@@ -9,6 +9,8 @@
 
 namespace ewn {
 
+typedef uint64_t hash_t;
+
 const int MAX_ROW = 9;
 const int MAX_COL = 9;
 const int MAX_PIECES = 6;
@@ -46,7 +48,7 @@ class Game {
     void doMove(int move);
     void undo();
 
-    uint64_t hash();
+    hash_t hash();
     bool isDoable();
     bool isImproving(int move);
     int kingDistance(int pos_a, int pos_b);
