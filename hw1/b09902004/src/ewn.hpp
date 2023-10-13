@@ -21,11 +21,11 @@ const int MAX_MOVES = 16;
 extern int ROW;
 extern int COL;
 extern int dir_value[8];
+extern int dice_seq[MAX_PERIOD];
 
 class Game {
     int row, col;
     int pos[MAX_PIECES + 2];  // pos[0] and pos[MAX_PIECES + 1] are not used
-    int dice_seq[MAX_PERIOD];
     int period;
     int goal_piece;
     std::vector<int> history;

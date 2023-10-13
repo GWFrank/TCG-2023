@@ -14,6 +14,7 @@ namespace ewn {
 int ROW = -1;
 int COL = -1;
 int dir_value[8] = {-1};
+int dice_seq[MAX_PERIOD] = {0};
 
 Game::Game() : history() {
     row = 0;
@@ -32,7 +33,6 @@ Game::Game(const Game &rhs) : history(rhs.history) {
     this->row = rhs.row;
     this->col = rhs.col;
     std::memcpy(this->pos, rhs.pos, (MAX_PIECES + 2) * sizeof(int));
-    std::memcpy(this->dice_seq, rhs.dice_seq, (MAX_PERIOD) * sizeof(int));
     this->period = rhs.period;
     this->goal_piece = rhs.goal_piece;
     this->h = rhs.h;
@@ -45,7 +45,6 @@ Game &Game::operator=(const Game &rhs) {
     this->row = rhs.row;
     this->col = rhs.col;
     std::memcpy(this->pos, rhs.pos, (MAX_PIECES + 2) * sizeof(int));
-    std::memcpy(this->dice_seq, rhs.dice_seq, (MAX_PERIOD) * sizeof(int));
     this->period = rhs.period;
     this->goal_piece = rhs.goal_piece;
     this->history = rhs.history;
@@ -79,7 +78,7 @@ void Game::scanBoard() {
     }
     scanf(" %d", &this->period);
     for (int i = 0; i < this->period; i++) {
-        scanf(" %d", &this->dice_seq[i]);
+        scanf(" %d", &dice_seq[i]);
     }
     scanf(" %d", &this->goal_piece);
 
@@ -177,7 +176,7 @@ int move_gen2(int *moves, int piece, int location) {
 
 int Game::generateAllMoves(int *moves) {
     int count = 0;
-    int dice = this->dice_seq[this->history.size() % this->period];
+    int dice = dice_seq[this->history.size() % this->period];
     if (this->pos[dice] == -1) {
         int small = dice - 1;
         int large = dice + 1;
