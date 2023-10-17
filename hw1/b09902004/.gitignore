@@ -5,3 +5,6 @@ solve_prof
 
 # profiler output
 gmon.out
+
+# report
+report.html
