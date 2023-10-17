@@ -266,7 +266,7 @@ bool Game::isImproving(int move) {
         }
         int old_dist = this->kingDistance(this->pos[piece], this->pos[i]);
         int new_dist = this->kingDistance(dst, this->pos[i]);
-        if (new_dist <= old_dist) {
+        if (new_dist < old_dist || (new_dist == old_dist && old_dist == 1)) {
             return true;
         }
     }
