@@ -287,10 +287,15 @@ void Game::calculateHeuristic() {
             this->h = std::min(
                 this->h,
                 this->kingDistance(this->pos[i], this->row * this->col - 1));
+            // this->h = std::min(
+            //     this->h,
+            //     this->rookDistance(this->pos[i], this->row * this->col - 1));
         }
     } else {
         this->h = this->kingDistance(this->pos[this->goal_piece],
                                      this->row * this->col - 1);
+        // this->h = this->rookDistance(this->pos[this->goal_piece],
+        //                              this->row * this->col - 1);
     }
 }
 
@@ -301,6 +306,15 @@ int Game::kingDistance(int pos_a, int pos_b) {
     int x_a = pos_a % this->col, y_a = pos_a / this->col;
     int x_b = pos_b % this->col, y_b = pos_b / this->col;
     return std::max(std::abs(x_b - x_a), std::abs(y_b - y_a));
+}
+
+int Game::rookDistance(int pos_a, int pos_b) {
+    if (pos_a == -1 || pos_b == -1) {  // piece eaten, can't make it
+        return 314159;
+    }
+    int x_a = pos_a % this->col, y_a = pos_a / this->col;
+    int x_b = pos_b % this->col, y_b = pos_b / this->col;
+    return std::abs(x_b - x_a) + std::abs(y_b - y_a);
 }
 
 }  // namespace ewn

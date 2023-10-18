@@ -52,6 +52,7 @@ class Game {
     bool isDoable();
     bool isImproving(int move);
     int kingDistance(int pos_a, int pos_b);
+    int rookDistance(int pos_a, int pos_b);
 };
 
 // inline member function should be put in header files
