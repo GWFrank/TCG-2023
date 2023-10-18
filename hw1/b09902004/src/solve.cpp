@@ -51,6 +51,11 @@ void AStar(ewn::Game initial_state) {
             state.printHistory();
             return;
         }
+        ewn::hash_t state_hash = state.hash();
+        if (seen_states.count(state_hash) != 0) {
+            continue;
+        }
+        seen_states.insert(state_hash);
 
         int moves[16];
         int move_count = state.generateAllMoves(moves);
@@ -63,11 +68,6 @@ void AStar(ewn::Game initial_state) {
             if (!state.isImproving(moves[idx])) {
                 continue;
             }
-            ewn::hash_t next_state_hash = next_state.hash();
-            if (seen_states.count(next_state_hash) != 0) {
-                continue;
-            }
-            seen_states.insert(next_state_hash);
             fringe.push(next_state);
         }
     }
