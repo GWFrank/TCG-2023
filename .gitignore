@@ -1,2 +1,7 @@
 /slides/
+
+# Dolphin files
 .directory
+
+# vim temp files
+*~
