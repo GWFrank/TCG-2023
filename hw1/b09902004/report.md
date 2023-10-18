@@ -18,6 +18,8 @@ The source codes will be compiled to a binary called `solve`.
 ./solve < testcases/11.in > solution_11.out
 ```
 
+---
+
 ## Algorithm, Heuristic, Tricks
 
 ### DFID
@@ -30,16 +32,20 @@ I followed the pseudo code in the slides to implement DFID, with the only differ
 
 I followed the pseudo code in textbook to implement A* algorithm.
 
-I made a small change by using heap and hash table to achieve the effect of modifiable priority queue. Because in this game particular, the first time a game board state is found reachable during A*, it is one of the shorted path to reach that state. Therefore we can use a hash table to record all board states that we have seen (but might still be in the priority queue).
+I made a small change by using heap and hash table to achieve the effect of modifiable priority queue. I pushed all possible next state into the heap first. And when popping a game state from the heap, I will skip that state if its board has been seen before.
+
+Because my heuristic is dice-agnostic, among all states with the same board, the one that is reached in the least steps must be popped first. The board is represented by a 64-bit number, with 7 bits for each piece's position (including not on board).
 
 ### A* heuristic
 
 I only came up with one heuristic. It is as follows:
 
-1. If the goal piece is specified, the heuristic $h$ is the chessboard distance ( $\max{(|x_1 - x_2|, |y_1 - y_2|)}$ ) between the goal piece and the goal square.
+1. If the goal piece is specified, the heuristic $h$ is the **chessboard distance** ( $\max{(|x_1 - x_2|, |y_1 - y_2|)}$ ) between the goal piece and the goal square.
 2. If there are no specified goal piece, the heuristic $h$ is the minimum chessboard distance between any piece and the goal square.
 
 This heuristic is trivially admissable (and also consistent), therefore would yield optimal path.
+
+<div style="page-break-before: always;"></div>
 
 ### Pruning
 
@@ -66,22 +72,64 @@ By this property, we can prune useless branches by not pushing those states into
 
 I extended the `ewn.cpp` and `ewn.h` provided for game-related utilities. Through profiling I found that a significant ratio of time was spent on copying game states, which contains roughly unnecessary 100 integers for the 9*9 board and some shared variable. Therefore, I slimed down the game state class to see if there are any difference.
 
+---
 
 ## Experiment Results
 
 Here are some benchmark results. All are compiled with `c++11` and `O3` optimization. Time limit is 10 seconds.
 
-| Method              | `11.in` | `14.in` | `22.in` | `23.in` | `31.in` | `33.in` |
-| ------------------- | ------- | ------- | ------- | ------- | ------- | ------- |
-| DFID                | 0.007s  | 3.489s  | DNF     | DNF     | DNF     | DNF     |
-| A*                  | 0.010s  | 0.093s  | 0.431s  | 1.092s  | 2.116s  | 0.699s  |
-| A* + pruning        | 0.010s  | 0.039s  | 0.326s  | 0.586s  | 1.093s  | 0.555s  |
-| A* + pruning + slim | 0.009s  | 0.040s  | 0.243s  | 0.390s  | 0.803s  | 0.432s  |
+| Method              | `11.in` | `14.in` | `22.in` | `23.in` | `31.in` | `33.in` | `extra.in` |
+| ------------------- | ------- | ------- | ------- | ------- | ------- | ------- | ---------- |
+| DFID                | 0.007s  | 3.489s  | DNF     | DNF     | DNF     | DNF     | N/A        |
+| A*                  | 0.012s  | 0.145s  | 0.839s  | 1.749s  | 3.508s  | 1.284s  | N/A        |
+| A* + pruning        | 0.011s  | 0.066s  | 0.519s  | 0.850s  | 1.857s  | 0.805s  | N/A        |
+| A* + slim           | 0.007s  | 0.075s  | 0.370s  | 0.616s  | 1.592s  | 0.665s  | 4.221s     |
+| A* + slim + pruning | 0.009s  | 0.039s  | 0.278s  | 0.394s  | 0.889s  | 0.441s  | 3.004s     |
 
-As the table above shows, pruning can reduce around 25~50% of time, and slim game state can save another 20%.
+As the table above shows, pruning can save about $30 \sim 50\%$ of execution time, and slimmed game state can save about $50 \sim 60\%$. Combining both method can reduce the total execution time to less than $\frac{1}{3}$ of the original one.
 
-I also used profiling to check how many states are explored (based on calls to certain function). For test case `31.in`, the algorithm explored around 2M states, and it only explored around 1M states with pruning.
+I also used profiling to check how many states are explored (based on calls to certain function). For test case `31.in`, the algorithm explored around 1.5M states, and it only explored around 0.95M states with pruning.
+
+<div style="page-break-before: always;"></div>
+
+### Inadmissible heuristic experiments
+
+I implemented a inadmissible variation of my original heuristic, where the chessboard distance is replaced by **taxicab distance** ($|x_1 - x_2| + |y_1 - y_2|$). Here is the benchmark result (with slim and pruning)
+
+| Distance Type | `11.in` | `14.in` | `22.in` | `23.in` | `31.in` | `33.in` | `extra.in` |
+| ------------- | ------- | ------- | ------- | ------- | ------- | ------- | ---------- |
+| chessboard    | 0.009s  | 0.039s  | 0.278s  | 0.394s  | 0.889s  | 0.441s  | 3.004s     |
+| taxicab       | 0.010s  | 0.014s  | 0.024s  | 0.228s  | 0.534s  | 0.136s  | 1.540s     |
+
+Because it still takes 1.5s when the admissible heuristic takes 3.0s, I think the cost of getting a sub-optimal is too large and not worth it.
+
+
+
+### Additional test cases
+
+```plaintext
+extra.in
+--------
+9 9
+   1   0   0   0   0   0   3   0   0
+   0   0   0   0   0   0   0   0   0
+   0   0   0   0   0   0   0   0   0
+   0   0   0   0   0   0   0   0   0
+   0   0   0   0   0   0   0   0   0
+   0   0   0   0   0   5   0   0   6
+   0   0   0   0   0   0   0   0   0
+   2   0   0   0   0   0   0   0   0
+   0   0   0   0   0   4   0   0   0
+
+3
+4 5 6
+1
+```
+
+---
 
 ## References
 
 People I discussed with: 陳可邦、陳柏諺、王均倍
+
+---
