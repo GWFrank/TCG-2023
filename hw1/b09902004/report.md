@@ -10,9 +10,7 @@ Use this command to compile the project:
 make
 ```
 
-The source codes will be compiled to a binary called `solve`.
-
-`solve` takes input from stdin and writes the solution to stdout. So one can use it this way:
+The source codes will be compiled to a binary called `solve`. `solve` takes input from stdin and writes the solution to stdout. So one can use it this way:
 
 ```
 ./solve < testcases/11.in > solution_11.out
@@ -32,9 +30,16 @@ I followed the pseudo code in the slides to implement DFID, with the only differ
 
 I followed the pseudo code in textbook to implement A* algorithm.
 
-I made a small change by using heap and hash table to achieve the effect of modifiable priority queue. I pushed all possible next state into the heap first. And when popping a game state from the heap, I will skip that state if its board has been seen before.
+I made a small change by using heap and hash table to achieve the effect of modifiable priority queue. I pushed all possible next state into the heap first. And when popping a game state from the heap, I will skip that state if its hash has been seen before.
 
-Because my heuristic is dice-agnostic, among all states with the same board, the one that is reached in the least steps must be popped first. The board is represented by a 64-bit number, with 7 bits for each piece's position (including not on board).
+### Game state hash
+
+I hash any game state into a 64-bit number. Bit $7(i-1)$ to $7i$
+ is used to for $i$-th piece's position (0 means not on board), and other bits are zeroed.
+
+I also tested adding the current index in dice sequence to the hash. This is because there are cases where "looping" is necessary, and board-only hash will not find any solution is such cases. Therefore I use the hash **without** dice sequence index first, and only use the "correct" hash if no solutions were found.
+
+<div style="page-break-before: always;"></div>
 
 ### A* heuristic
 
@@ -44,8 +49,6 @@ I only came up with one heuristic. It is as follows:
 2. If there are no specified goal piece, the heuristic $h$ is the minimum chessboard distance between any piece and the goal square.
 
 This heuristic is trivially admissable (and also consistent), therefore would yield optimal path.
-
-<div style="page-break-before: always;"></div>
 
 ### Pruning
 
@@ -74,6 +77,8 @@ I extended the `ewn.cpp` and `ewn.h` provided for game-related utilities. Throug
 
 ---
 
+<div style="page-break-before: always;"></div>
+
 ## Experiment Results
 
 Here are some benchmark results. All are compiled with `c++11` and `O3` optimization. Time limit is 10 seconds.
@@ -90,8 +95,6 @@ As the table above shows, pruning can save about $30 \sim 50\%$ of execution tim
 
 I also used profiling to check how many states are explored (based on calls to certain function). For test case `31.in`, the algorithm explored around 1.5M states, and it only explored around 0.95M states with pruning.
 
-<div style="page-break-before: always;"></div>
-
 ### Inadmissible heuristic experiments
 
 I implemented a inadmissible variation of my original heuristic, where the chessboard distance is replaced by **taxicab distance** ($|x_1 - x_2| + |y_1 - y_2|$). Here is the benchmark result (with slim and pruning)
@@ -102,8 +105,6 @@ I implemented a inadmissible variation of my original heuristic, where the chess
 | taxicab       | 0.010s  | 0.014s  | 0.024s  | 0.228s  | 0.534s  | 0.136s  | 1.540s     |
 
 Because it still takes 1.5s when the admissible heuristic takes 3.0s, I think the cost of getting a sub-optimal is too large and not worth it.
-
-
 
 ### Additional test cases
 
