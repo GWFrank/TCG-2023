@@ -15,6 +15,7 @@ int ROW = -1;
 int COL = -1;
 int dir_value[8] = {-1};
 int dice_seq[MAX_PERIOD] = {0};
+bool SAFE_HASH = false;
 
 Game::Game() : history() {
     row = 0;
@@ -249,6 +250,10 @@ hash_t Game::hash() {
     hash_t h(0);
     for (int i = 1; i <= 6; i++) {
         h |= static_cast<hash_t>(this->pos[i] + 1) << (7 * (i - 1));
+    }
+    if (SAFE_HASH) {
+        int seq_idx = this->history.size() % this->period;
+        h |= static_cast<hash_t>(seq_idx) << (7 * 6);
     }
     return h;
 }

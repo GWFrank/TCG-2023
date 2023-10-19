@@ -38,7 +38,8 @@ void DFID(ewn::Game &game) {
     PrintDummyAnswer();
 }
 
-void AStar(ewn::Game initial_state) {
+// Return value indicates if a solution is found
+bool AStar(ewn::Game initial_state) {
     std::priority_queue<ewn::Game> fringe;
     std::unordered_set<ewn::hash_t> seen_states;
 
@@ -49,7 +50,7 @@ void AStar(ewn::Game initial_state) {
 
         if (state.isGoal()) {
             state.printHistory();
-            return;
+            return true;
         }
         ewn::hash_t state_hash = state.hash();
         if (seen_states.count(state_hash) != 0) {
@@ -68,19 +69,29 @@ void AStar(ewn::Game initial_state) {
             if (!state.isImproving(moves[idx])) {
                 continue;
             }
+            // ewn::hash_t next_state_hash = next_state.hash();
+            // if (seen_states.count(next_state_hash) != 0) {
+            //     continue;
+            // }
+            // seen_states.insert(next_state_hash);
             fringe.push(next_state);
         }
     }
 
     // Return a dummy answer if AStar fails. This should not happen.
-    PrintDummyAnswer();
+    // PrintDummyAnswer();
+    return false;
 }
 
 int main() {
+    ewn::SAFE_HASH = false;
     ewn::Game game;
     game.scanBoard();
     // DFID(game);
-    AStar(game);
-
+    bool fast_found = AStar(game);
+    if (!fast_found) {
+        ewn::SAFE_HASH = true;
+        AStar(game);
+    }
     return 0;
 }

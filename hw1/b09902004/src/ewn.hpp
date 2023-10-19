@@ -22,6 +22,7 @@ extern int ROW;
 extern int COL;
 extern int dir_value[8];
 extern int dice_seq[MAX_PERIOD];
+extern bool SAFE_HASH;
 
 class Game {
     int row, col;
