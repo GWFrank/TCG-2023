@@ -34,11 +34,11 @@ int main() {
                 game.do_move(move);
             } else {
 #ifdef HARD
-                move = search_and_get_move(game, 8);
+                move = ewn::search_and_get_move(game, 8);
 #elif defined(NORMAL)
-                move = search_and_get_move(game, 2);
+                move = ewn::search_and_get_move(game, 2);
 #elif defined(EASY)
-                move = get_random_move(game);
+                move = ewn::get_random_move(game);
 #else
                 fprintf(stderr, "Please define at least one mode.\n");
                 exit(1);

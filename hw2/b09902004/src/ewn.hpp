@@ -38,7 +38,7 @@ class State {
     friend int search(State &, int alpha, int beta, int depth);
 };
 
-// int search_and_get_move(EWN &, int depth);
+int search_and_get_move(State &, int depth);
 int get_random_move(State &);
 
 }  // namespace ewn

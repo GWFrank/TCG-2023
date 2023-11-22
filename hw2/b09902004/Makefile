@@ -1,4 +1,4 @@
-CXXFLAGS = -std=c++11 -O2 -Wall -Wextra
+CXXFLAGS = -std=c++20 -O2 -Wall -Wextra
 EASY = -D EASY
 NORMAL = -D NORMAL
 HARD = -D HARD
