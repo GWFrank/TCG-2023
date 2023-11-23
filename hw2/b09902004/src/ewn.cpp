@@ -35,31 +35,31 @@ static const int init_pos[2][MAX_CUBES] = {
 // clang-format on
 
 void State::init_board() {
-    memset(board_, 0xff, sizeof(board_));
-    memset(pos_, 0xff, sizeof(pos_));
-    num_cubes_[0] = MAX_CUBES;
-    num_cubes_[1] = MAX_CUBES;
-    next_ = RED;
-    n_plies_ = 0;
+    memset(m_board, 0xff, sizeof(m_board));
+    memset(m_pos, 0xff, sizeof(m_pos));
+    m_num_cubes[0] = MAX_CUBES;
+    m_num_cubes[1] = MAX_CUBES;
+    m_next = RED;
+    m_n_plies = 0;
 
     int offset = 0;
     for (int player = 0; player < 2; player++) {
         for (int i = 0; i < MAX_CUBES; i++) {
             int cube = getchar() - '0';
-            board_[init_pos[player][i]] = cube + offset;
-            pos_[cube + offset] = init_pos[player][i];
+            m_board[init_pos[player][i]] = cube + offset;
+            m_pos[cube + offset] = init_pos[player][i];
         }
         offset += MAX_CUBES;
     }
     for (int i = 0; i < PERIOD; i++) {
-        dice_seq_[i] = getchar() - '0';
+        m_dice_seq[i] = getchar() - '0';
     }
 }
 
 bool State::is_over() {
-    if (num_cubes_[0] == 0 || num_cubes_[1] == 0) return true;
-    if (is_blue_cube(board_[0])) return true;
-    if (is_red_cube(board_[ROW * COL - 1])) return true;
+    if (m_num_cubes[0] == 0 || m_num_cubes[1] == 0) return true;
+    if (is_blue_cube(m_board[0])) return true;
+    if (is_red_cube(m_board[ROW * COL - 1])) return true;
     return false;
 }
 
@@ -97,9 +97,9 @@ int move_gen(int *move_arr, int cube, int location) {
 
 int State::move_gen_all(int *move_arr) {
     int count = 0;
-    const int dice = dice_seq_[n_plies_ % PERIOD];
-    const int offset = next_ == BLUE ? MAX_CUBES : 0;
-    int *const self_pos = pos_ + offset;
+    const int dice = m_dice_seq[m_n_plies % PERIOD];
+    const int offset = m_next == BLUE ? MAX_CUBES : 0;
+    int *const self_pos = m_pos + offset;
 
     if (self_pos[dice] == -1) {
         int small = dice - 1;
@@ -123,52 +123,58 @@ int State::move_gen_all(int *move_arr) {
 void State::do_move(int move) {
     int cube = move >> 4;
     int direction = move & 0xf;
-    int dst = pos_[cube] + dir_val[next_][direction];
+    int dst = m_pos[cube] + dir_val[m_next][direction];
 
-    if (n_plies_ == MAX_PLIES) {
+    if (m_n_plies == MAX_PLIES) {
         fprintf(stderr, "cannot do anymore moves\n");
         exit(1);
     }
-    if (board_[dst] >= 0) {
-        if (is_red_cube_fast(board_[dst]))
-            num_cubes_[RED]--;
+    if (m_board[dst] >= 0) {
+        if (is_red_cube_fast(m_board[dst]))
+            m_num_cubes[RED]--;
         else
-            num_cubes_[BLUE]--;
-        pos_[board_[dst]] = -1;
-        move |= board_[dst] << 8;
+            m_num_cubes[BLUE]--;
+        m_pos[m_board[dst]] = -1;
+        move |= m_board[dst] << 8;
     } else
         move |= 0xf00;
-    board_[pos_[cube]] = -1;
-    board_[dst] = cube;
-    pos_[cube] = dst;
-    history_[n_plies_++] = move;
-    change_player(next_);
+    m_board[m_pos[cube]] = -1;
+    m_board[dst] = cube;
+    m_pos[cube] = dst;
+    m_history[m_n_plies++] = move;
+    change_player(m_next);
 }
 
 void State::undo() {
-    if (n_plies_ == 0) {
+    if (m_n_plies == 0) {
         fprintf(stderr, "no history\n");
         exit(1);
     }
-    change_player(next_);
+    change_player(m_next);
 
-    int move = history_[--n_plies_];
+    int move = m_history[--m_n_plies];
     int eaten_cube = move >> 8;
     int cube = (move & 0xff) >> 4;
     int direction = move & 0xf;
-    int src = pos_[cube] - dir_val[next_][direction];
+    int src = m_pos[cube] - dir_val[m_next][direction];
 
     if (!is_empty_cube(eaten_cube)) {
         if (is_red_cube_fast(eaten_cube))
-            num_cubes_[RED]++;
+            m_num_cubes[RED]++;
         else
-            num_cubes_[BLUE]++;
-        board_[pos_[cube]] = eaten_cube;
-        pos_[eaten_cube] = pos_[cube];
+            m_num_cubes[BLUE]++;
+        m_board[m_pos[cube]] = eaten_cube;
+        m_pos[eaten_cube] = m_pos[cube];
     } else
-        board_[pos_[cube]] = -1;
-    board_[src] = cube;
-    pos_[cube] = src;
+        m_board[m_pos[cube]] = -1;
+    m_board[src] = cube;
+    m_pos[cube] = src;
+}
+
+inline int get_random_move(State &game) {
+    int move_arr[MAX_MOVES];
+    int num_moves = game.move_gen_all(move_arr);
+    return move_arr[arc4random_uniform(num_moves)];
 }
 
 }  // namespace ewn

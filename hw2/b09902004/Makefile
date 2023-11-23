@@ -5,13 +5,13 @@ HARD = -D HARD
 
 all: easy normal hard
 
-easy: src/agent.cpp src/ewn.cpp src/heuristic.cpp
+easy: src/agent.cpp src/ewn.cpp
 	g++ $(CXXFLAGS) $(EASY) $^ -o $@
 
-normal: src/agent.cpp src/ewn.cpp src/heuristic.cpp
+normal: src/agent.cpp src/ewn.cpp
 	g++ $(CXXFLAGS) $(NORMAL) $^ -o $@
 
-hard: src/agent.cpp src/ewn.cpp src/heuristic.cpp
+hard: src/agent.cpp src/ewn.cpp
 	g++ $(CXXFLAGS) $(HARD) $^ -o $@
 
 clean:
