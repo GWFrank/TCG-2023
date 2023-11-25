@@ -1,6 +1,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
+
+#include <iostream>
+
 #include "ewn.hpp"
 
 int recv_move(int enemy) {
@@ -18,6 +22,70 @@ void send_move(int move) {
     fflush(stdout);
 }
 
+int MCS(const ewn::State& current) {
+    std::timespec ts_start, ts_now;
+    std::timespec_get(&ts_start, TIME_UTC);
+
+    ewn::Node* root = ewn::Node::create_root(current);
+    root->expand();
+    int n_childs = root->n_childs();
+
+    // Initial run
+#ifndef NDEBUG
+    std::cerr << "Starting initial simulation()\n";
+#endif
+    for (int i = 0; i < n_childs; i++) {
+        root->child(i)->simulate_and_backward();
+    }
+
+    // Find child with highest UCB score and simulate, until time runs out
+#ifndef NDEBUG
+    std::cerr << "Finding highest UCB and simulate\n";
+#endif
+    while (true) {
+        timespec_get(&ts_now, TIME_UTC);
+        double wall_clock_time = static_cast<double>(ts_now.tv_sec + ts_now.tv_nsec * 1e-9) -
+                                 static_cast<double>(ts_start.tv_sec + ts_start.tv_nsec * 1e-9);
+        if (wall_clock_time >= ewn::SEARCH_TIME) {
+            break;
+        }
+
+        ewn::Node* best_ucb_child = root->child(0);
+        double best_ucb_score = root->child(0)->UCB_score();
+        for (int i = 1; i < n_childs; i++) {
+            double score_i = root->child(i)->UCB_score();
+            if (score_i > best_ucb_score) {
+                best_ucb_child = root->child(i);
+                best_ucb_score = score_i;
+            }
+        }
+
+        best_ucb_child->simulate_and_backward();
+    }
+
+    // Select the child with highest win rate
+#ifndef NDEBUG
+    std::cerr << "Selecting best child\n";
+#endif
+    ewn::Node* best_wr_child = root->child(0);
+    double best_wr = root->child(0)->win_rate();
+#ifndef NDEBUG
+    std::cerr << "Child 0 win rate: " << best_wr << "\n";
+#endif
+    for (int i = 1; i < n_childs; i++) {
+        double wr_i = root->child(i)->win_rate();
+#ifndef NDEBUG
+        std::cerr << "Child " << i << " win rate: " << wr_i << "\n";
+#endif
+        if (wr_i > best_wr) {
+            best_wr_child = root->child(i);
+            best_wr = wr_i;
+        }
+    }
+
+    return best_wr_child->ply();
+}
+
 int main() {
     ewn::State game;
     bool my_turn;
@@ -33,15 +101,14 @@ int main() {
                 move = recv_move(enemy);
                 game.do_move(move);
             } else {
-#ifdef HARD
-                move = ewn::search_and_get_move(game, 8);
-#elif defined(NORMAL)
-                move = ewn::search_and_get_move(game, 2);
-#elif defined(EASY)
-                move = ewn::get_random_move(game);
-#else
-                fprintf(stderr, "Please define at least one mode.\n");
-                exit(1);
+#ifndef NDEBUG
+                game.log_board();
+                std::cerr << "==== Enter MCS() ====\n";
+#endif
+                move = MCS(game);
+#ifndef NDEBUG
+                std::cerr << "==== Exit MCS() ====\n"
+                          << "Piece: " << (move >> 4) << " Direction: " << (move & 0xf) << "\n";
 #endif
                 game.do_move(move);
                 send_move(move);

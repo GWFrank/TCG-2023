@@ -1,18 +1,16 @@
 CXXFLAGS = -std=c++20 -O2 -Wall -Wextra
-EASY = -D EASY
-NORMAL = -D NORMAL
-HARD = -D HARD
+CXXFLAGS_DEBUG = -std=c++20 -Og -Wall -Wextra
+RELEASE = -D NDEBUG
 
-all: easy normal hard
+all: agent_release
+debug: agent_debug
+release: agent_release
 
-easy: src/agent.cpp src/ewn.cpp
-	g++ $(CXXFLAGS) $(EASY) $^ -o $@
+agent_debug: src/agent.cpp src/ewn.cpp src/ewn.hpp
+	g++ $(CXXFLAGS_DEBUG) src/agent.cpp src/ewn.cpp -o agent_debug
 
-normal: src/agent.cpp src/ewn.cpp
-	g++ $(CXXFLAGS) $(NORMAL) $^ -o $@
-
-hard: src/agent.cpp src/ewn.cpp
-	g++ $(CXXFLAGS) $(HARD) $^ -o $@
+agent_release: src/agent.cpp src/ewn.cpp src/ewn.hpp
+	g++ $(CXXFLAGS) $(RELEASE) src/agent.cpp src/ewn.cpp -o agent
 
 clean:
-	rm -f easy normal hard
+	rm -f agent agent_debug

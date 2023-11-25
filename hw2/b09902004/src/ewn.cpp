@@ -1,15 +1,19 @@
+#include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cstdint>
+#include <cmath>
+
+#include <iostream>
+
 #include "ewn.hpp"
 
 namespace ewn {
 
 inline bool is_red_cube(int x) { return (x >= 0) && (x < MAX_CUBES); }
 
-inline bool is_blue_cube(int x) {
-    return (x >= MAX_CUBES) && (x < (MAX_CUBES << 1));
-}
+inline bool is_blue_cube(int x) { return (x >= MAX_CUBES) && (x < (MAX_CUBES << 1)); }
 
 inline bool is_red_cube_fast(int x) { return x < MAX_CUBES; }
 
@@ -34,9 +38,18 @@ static const int init_pos[2][MAX_CUBES] = {
 };
 // clang-format on
 
+State::State() {
+    std::memset(m_board, 0x00, sizeof(m_board));
+    std::memset(m_pos, 0x00, sizeof(m_pos));
+    m_num_cubes[0] = MAX_CUBES;
+    m_num_cubes[0] = MAX_CUBES;
+    m_next = RED;
+    m_n_plies = 0;
+}
+
 void State::init_board() {
-    memset(m_board, 0xff, sizeof(m_board));
-    memset(m_pos, 0xff, sizeof(m_pos));
+    std::memset(m_board, 0xff, sizeof(m_board));
+    std::memset(m_pos, 0xff, sizeof(m_pos));
     m_num_cubes[0] = MAX_CUBES;
     m_num_cubes[1] = MAX_CUBES;
     m_next = RED;
@@ -52,16 +65,30 @@ void State::init_board() {
         offset += MAX_CUBES;
     }
     for (int i = 0; i < PERIOD; i++) {
-        m_dice_seq[i] = getchar() - '0';
+        State::s_dice_seq[i] = getchar() - '0';
     }
 }
 
-bool State::is_over() {
+bool State::is_over() const {
     if (m_num_cubes[0] == 0 || m_num_cubes[1] == 0) return true;
     if (is_blue_cube(m_board[0])) return true;
     if (is_red_cube(m_board[ROW * COL - 1])) return true;
     return false;
 }
+
+// Return either ewn::BLUE or ewn::RED
+int State::get_winner() const {
+#ifndef NDEBUG
+    assert(is_over());
+#endif
+    if (m_num_cubes[RED] == 0 || is_blue_cube_fast(m_board[0])) {
+        return BLUE;
+    } else {
+        return RED;
+    }
+}
+
+int State::get_round_player() const { return m_next; }
 
 /*
 move: an integer using only 12 bits
@@ -95,11 +122,11 @@ int move_gen(int *move_arr, int cube, int location) {
     return count;
 }
 
-int State::move_gen_all(int *move_arr) {
+int State::move_gen_all(int *move_arr) const {
     int count = 0;
-    const int dice = m_dice_seq[m_n_plies % PERIOD];
+    const int dice = State::s_dice_seq[m_n_plies % PERIOD];
     const int offset = m_next == BLUE ? MAX_CUBES : 0;
-    int *const self_pos = m_pos + offset;
+    const int *self_pos = m_pos + offset;
 
     if (self_pos[dice] == -1) {
         int small = dice - 1;
@@ -108,11 +135,12 @@ int State::move_gen_all(int *move_arr) {
         while (small >= 0 && self_pos[small] == -1) small--;
         while (large < MAX_CUBES && self_pos[large] == -1) large++;
 
-        if (small >= 0)
+        if (small >= 0) {
             count += move_gen(move_arr, small + offset, self_pos[small]);
-        if (large < MAX_CUBES)
-            count +=
-                move_gen(move_arr + count, large + offset, self_pos[large]);
+        }
+        if (large < MAX_CUBES) {
+            count += move_gen(move_arr + count, large + offset, self_pos[large]);
+        }
     } else {
         count = move_gen(move_arr, dice + offset, self_pos[dice]);
     }
@@ -130,51 +158,145 @@ void State::do_move(int move) {
         exit(1);
     }
     if (m_board[dst] >= 0) {
-        if (is_red_cube_fast(m_board[dst]))
+        if (is_red_cube_fast(m_board[dst])) {
             m_num_cubes[RED]--;
-        else
+        } else {
             m_num_cubes[BLUE]--;
+        }
         m_pos[m_board[dst]] = -1;
         move |= m_board[dst] << 8;
-    } else
+    } else {
         move |= 0xf00;
+    }
     m_board[m_pos[cube]] = -1;
     m_board[dst] = cube;
     m_pos[cube] = dst;
-    m_history[m_n_plies++] = move;
+    m_n_plies++;
     change_player(m_next);
 }
 
-void State::undo() {
-    if (m_n_plies == 0) {
-        fprintf(stderr, "no history\n");
-        exit(1);
+void State::log_board() {
+    std::cerr << "Next dice: " << s_dice_seq[m_n_plies % PERIOD] << "\n";
+
+    for (int r = 0; r < ROW; r++) {
+        for (int c = 0; c < COL; c++) {
+            int piece = m_board[r * COL + c];
+            if (piece != -1) {
+                fprintf(stderr, "%02d ", piece);
+            } else {
+                fprintf(stderr, "__ ");
+            }
+        }
+        std::cerr << "\n";
     }
-    change_player(m_next);
-
-    int move = m_history[--m_n_plies];
-    int eaten_cube = move >> 8;
-    int cube = (move & 0xff) >> 4;
-    int direction = move & 0xf;
-    int src = m_pos[cube] - dir_val[m_next][direction];
-
-    if (!is_empty_cube(eaten_cube)) {
-        if (is_red_cube_fast(eaten_cube))
-            m_num_cubes[RED]++;
-        else
-            m_num_cubes[BLUE]++;
-        m_board[m_pos[cube]] = eaten_cube;
-        m_pos[eaten_cube] = m_pos[cube];
-    } else
-        m_board[m_pos[cube]] = -1;
-    m_board[src] = cube;
-    m_pos[cube] = src;
 }
 
-inline int get_random_move(State &game) {
+// inline int get_random_move(const State &game) {
+//     int move_arr[MAX_MOVES];
+//     int num_moves = game.move_gen_all(move_arr);
+//     return move_arr[arc4random_uniform(num_moves)];
+// }
+
+Node *Node::create_root(const State &game_state) {
+    Node &root = All_Nodes[0];
+    s_id_generator = 0;
+    root = Node{};
+
+    root.m_game_state = game_state;
+    root.m_ply = -1;
+    root.m_id = s_id_generator;
+    root.m_parent_id = -1;
+    root.m_n_childs = 0;
+    root.m_depth = 0;
+
+    root.m_N = 0;
+    root.m_W = 0;
+    root.m_win_rate = 0.0;
+    root.m_sqrtN = 0.0;
+    root.m_c_sqrt_logN = 0.0;
+
+    s_id_generator++;
+    return &root;
+}
+
+double Node::win_rate() const { return m_win_rate; }
+
+double Node::UCB_score() const {
+    double exploitation = m_win_rate;
+    double exploration = All_Nodes[m_parent_id].m_c_sqrt_logN / m_sqrtN;
+    return exploitation + exploration;
+}
+
+Node *Node::parent() const {
+    if (m_parent_id == -1) {
+        return nullptr;
+    }
+    return &All_Nodes[m_parent_id];
+}
+
+Node *Node::child(int idx) const { return &(All_Nodes[m_child_id[idx]]); }
+
+int Node::ply() const { return m_ply; }
+
+int Node::n_childs() const { return m_n_childs; }
+
+void Node::expand() {
     int move_arr[MAX_MOVES];
-    int num_moves = game.move_gen_all(move_arr);
-    return move_arr[arc4random_uniform(num_moves)];
+    int num_moves = m_game_state.move_gen_all(move_arr);
+    for (int i = 0; i < num_moves; i++) {
+        int cid = Node::s_id_generator;
+        Node::s_id_generator++;
+        m_child_id[m_n_childs] = cid;
+        m_n_childs++;
+
+        Node &child = All_Nodes[cid];
+        child.m_game_state = m_game_state;
+        child.m_game_state.do_move(move_arr[i]);
+        child.m_ply = move_arr[i];
+        child.m_id = cid;
+        child.m_parent_id = m_id;
+        child.m_n_childs = 0;
+        child.m_depth = m_depth + 1;
+
+        child.m_N = 0;
+        child.m_W = 0;
+        child.m_win_rate = 0.0;
+        child.m_sqrtN = 0.0;
+        child.m_c_sqrt_logN = 0.0;
+    }
+}
+
+// Simulate SIM_BATCH times and back-propagate the result
+void Node::simulate_and_backward() {
+    int wins = 0;
+    for (int i = 0; i < SIM_BATCH; i++) {
+        State sim_state{m_game_state};
+        int move_arr[MAX_MOVES];
+        while (!sim_state.is_over()) {
+            // TODO: add shortcuts
+            int n_moves = sim_state.move_gen_all(move_arr);
+            sim_state.do_move(move_arr[arc4random_uniform(n_moves)]);
+        }
+        bool is_max_node = (m_depth % 2 == 0);
+        if ((sim_state.get_winner() == m_game_state.get_round_player()) == is_max_node) {
+            wins++;
+        }
+    }
+
+    Node *cur_p = this;
+    while (cur_p != nullptr) {
+        cur_p->update(SIM_BATCH, wins);
+        cur_p = cur_p->parent();
+    }
+}
+
+void Node::update(int N, int W) {
+    m_N += N;
+    m_W += W;
+
+    m_win_rate = static_cast<double>(m_W) / static_cast<double>(m_N);
+    m_sqrtN = std::sqrt(m_N);
+    m_c_sqrt_logN = UCB_C * std::sqrt(std::log(m_N));
 }
 
 }  // namespace ewn
