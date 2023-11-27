@@ -38,6 +38,8 @@ static const int init_pos[2][MAX_CUBES] = {
 };
 // clang-format on
 
+// Globals
+static Node All_Nodes[MAX_NODES];
 static int64_t total_simulation = 0;
 
 State::State() {

@@ -1,7 +1,7 @@
 CXXFLAGS = -std=c++20 -Wall -Wextra
 CXXFLAGS_DEBUG = -std=c++20 -Wall -Wextra
 DEBUG = -Og
-RELEASE = -O2 -D NDEBUG
+RELEASE = -O3 -funroll-loops -D NDEBUG
 
 all: agent_release
 debug: agent_debug

@@ -20,7 +20,7 @@ constexpr int MAX_NODES = 100000;
 
 // Tunable parameters
 constexpr double UCB_C = 1.18;  // Balancing exploitation and exploration
-constexpr double SIM_BATCH = 10;
+constexpr double SIM_BATCH = 25;
 constexpr double SEARCH_TIME = 1.9;
 
 class State {
@@ -80,11 +80,7 @@ class Node {
 };
 
 void reset_simulation_count();
-
 void log_simulation_count();
-
-// Globals
-inline Node All_Nodes[MAX_NODES];
 
 }  // namespace ewn
 
