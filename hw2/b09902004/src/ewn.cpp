@@ -38,6 +38,8 @@ static const int init_pos[2][MAX_CUBES] = {
 };
 // clang-format on
 
+static int64_t total_simulation = 0;
+
 State::State() {
     std::memset(m_board, 0x00, sizeof(m_board));
     std::memset(m_pos, 0x00, sizeof(m_pos));
@@ -175,6 +177,22 @@ void State::do_move(int move) {
     change_player(m_next);
 }
 
+int State::find_mate_in_1(int move_arr[], int n_moves) const {
+    for (int i = 0; i < n_moves; i++) {
+        int move = move_arr[i];
+        int cube = move >> 4;
+        int direction = move & 0xf;
+        int dst = m_pos[cube] + dir_val[m_next][direction];
+        if (is_red_cube_fast(cube) && dst == ROW * COL - 1) {
+            return move;
+        }
+        if (is_blue_cube_fast(cube) && dst == 0) {
+            return move;
+        }
+    }
+    return -1;
+}
+
 void State::log_board() {
     std::cerr << "Next dice: " << s_dice_seq[m_n_plies % PERIOD] << "\n";
 
@@ -275,6 +293,11 @@ void Node::simulate_and_backward() {
         while (!sim_state.is_over()) {
             // TODO: add shortcuts
             int n_moves = sim_state.move_gen_all(move_arr);
+            int quick_mate = sim_state.find_mate_in_1(move_arr, n_moves);
+            if (quick_mate != -1) {  // Shortcut reaching goal in 1 move
+                sim_state.do_move(quick_mate);
+                continue;
+            }
             sim_state.do_move(move_arr[arc4random_uniform(n_moves)]);
         }
         bool is_max_node = (m_depth % 2 == 0);
@@ -282,6 +305,9 @@ void Node::simulate_and_backward() {
             wins++;
         }
     }
+#ifndef NDEBUG
+    total_simulation += SIM_BATCH;
+#endif
 
     Node *cur_p = this;
     while (cur_p != nullptr) {
@@ -298,5 +324,9 @@ void Node::update(int N, int W) {
     m_sqrtN = std::sqrt(m_N);
     m_c_sqrt_logN = UCB_C * std::sqrt(std::log(m_N));
 }
+
+void reset_simulation_count() { total_simulation = 0; }
+
+void log_simulation_count() { std::cerr << "Total " << total_simulation << " simulations\n"; }
 
 }  // namespace ewn

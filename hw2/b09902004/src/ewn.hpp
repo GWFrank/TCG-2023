@@ -41,6 +41,7 @@ class State {
     int get_round_player() const;
     int move_gen_all(int* move_arr) const;
     void do_move(int move);
+    int find_mate_in_1(int move_arr[], int n_moves) const;
 
     void log_board();
 };
@@ -61,7 +62,7 @@ class Node {
     // For calculating UCB
     int m_N;
     int m_W;
-    double m_win_rate;
+    double m_win_rate;     // This is always win rate for *us*, regardless of turn player
     double m_sqrtN;        // sqrt(N)
     double m_c_sqrt_logN;  // c*sqrt(log(N))
 
@@ -78,8 +79,12 @@ class Node {
     void update(int N, int W);
 };
 
+void reset_simulation_count();
+
+void log_simulation_count();
+
 // Globals
-static Node All_Nodes[MAX_NODES];
+inline Node All_Nodes[MAX_NODES];
 
 }  // namespace ewn
 

@@ -26,6 +26,14 @@ int MCS(const ewn::State& current) {
     std::timespec ts_start, ts_now;
     std::timespec_get(&ts_start, TIME_UTC);
 
+    // Shortcut reaching goal in 1 move
+    static int move_arr[ewn::MAX_MOVES];
+    int n_moves = current.move_gen_all(move_arr);
+    int quick_mate = current.find_mate_in_1(move_arr, n_moves);
+    if (quick_mate != -1) {
+        return quick_mate;
+    }
+
     ewn::Node* root = ewn::Node::create_root(current);
     root->expand();
     int n_childs = root->n_childs();
@@ -104,11 +112,13 @@ int main() {
 #ifndef NDEBUG
                 game.log_board();
                 std::cerr << "==== Enter MCS() ====\n";
+                ewn::reset_simulation_count();
 #endif
                 move = MCS(game);
 #ifndef NDEBUG
                 std::cerr << "==== Exit MCS() ====\n"
                           << "Piece: " << (move >> 4) << " Direction: " << (move & 0xf) << "\n";
+                ewn::log_simulation_count();
 #endif
                 game.do_move(move);
                 send_move(move);
