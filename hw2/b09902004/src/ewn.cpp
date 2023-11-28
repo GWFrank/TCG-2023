@@ -191,6 +191,12 @@ int State::find_mate_in_1(int move_arr[], int n_moves) const {
         if (is_blue_cube_fast(cube) && dst == 0) {
             return move;
         }
+        if (m_num_cubes[RED] == 1 && is_red_cube_fast(dst)) {
+            return move;
+        }
+        if (m_num_cubes[BLUE] == 1 && is_blue_cube_fast(dst)) {
+            return move;
+        }
     }
     return -1;
 }
@@ -243,6 +249,9 @@ double Node::win_rate() const { return m_win_rate; }
 
 double Node::UCB_score() const {
     double exploitation = m_win_rate;
+    if (m_depth % 2 == 0) {
+        exploitation = 1 - exploitation;
+    }
     double exploration = All_Nodes[m_parent_id].m_c_sqrt_logN / m_sqrtN;
     return exploitation + exploration;
 }
@@ -266,6 +275,9 @@ void Node::expand() {
     for (int i = 0; i < num_moves; i++) {
         int cid = Node::s_id_generator;
         Node::s_id_generator++;
+#ifndef NDEBUG
+        assert(s_id_generator < MAX_NODES);
+#endif
         m_child_id[m_n_childs] = cid;
         m_n_childs++;
 
@@ -295,6 +307,10 @@ void Node::simulate_and_backward() {
         while (!sim_state.is_over()) {
             // TODO: add shortcuts
             int n_moves = sim_state.move_gen_all(move_arr);
+            if (n_moves == 1) {  // Shortcut only 1 legal move
+                sim_state.do_move(move_arr[0]);
+                continue;
+            }
             int quick_mate = sim_state.find_mate_in_1(move_arr, n_moves);
             if (quick_mate != -1) {  // Shortcut reaching goal in 1 move
                 sim_state.do_move(quick_mate);
@@ -325,6 +341,31 @@ void Node::update(int N, int W) {
     m_win_rate = static_cast<double>(m_W) / static_cast<double>(m_N);
     m_sqrtN = std::sqrt(m_N);
     m_c_sqrt_logN = UCB_C * std::sqrt(std::log(m_N));
+}
+
+Node *Node::find_PV_leaf() {
+    Node *pv_node = this;
+    while (pv_node->m_n_childs != 0) {
+        Node *best_ucb_child = pv_node->child(0);
+        double best_ucb_score = pv_node->child(0)->UCB_score();
+        for (int i = 1; i < pv_node->m_n_childs; i++) {
+            double score_i = pv_node->child(i)->UCB_score();
+            if (score_i > best_ucb_score) {
+                best_ucb_child = pv_node->child(i);
+                best_ucb_score = score_i;
+            }
+        }
+        pv_node = best_ucb_child;
+    }
+    return pv_node;
+}
+
+bool Node::should_expand() const { return m_N >= SIM_THRES; }
+
+void Node::simulate_and_backward_children() {
+    for (int i = 0; i < m_n_childs; i++) {
+        child(i)->simulate_and_backward();
+    }
 }
 
 void reset_simulation_count() { total_simulation = 0; }

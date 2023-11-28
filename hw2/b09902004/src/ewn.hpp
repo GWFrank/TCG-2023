@@ -16,11 +16,12 @@ constexpr int BLUE = 1;
 // Constraints (might be tunable)
 constexpr int MAX_PLIES = 150;  // the average ply of a game is far smaller
 constexpr int MAX_MOVES = 8;
-constexpr int MAX_NODES = 100000;
+constexpr int MAX_NODES = 1000000;
 
 // Tunable parameters
 constexpr double UCB_C = 1.18;  // Balancing exploitation and exploration
-constexpr double SIM_BATCH = 25;
+constexpr int SIM_BATCH = 25;
+constexpr int SIM_THRES = 100;
 constexpr double SEARCH_TIME = 1.9;
 
 class State {
@@ -77,6 +78,10 @@ class Node {
     void expand();
     void simulate_and_backward();
     void update(int N, int W);
+
+    Node* find_PV_leaf();
+    bool should_expand() const;
+    void simulate_and_backward_children();
 };
 
 void reset_simulation_count();
