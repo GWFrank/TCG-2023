@@ -242,7 +242,18 @@ Node *Node::create_root(const State &game_state) {
     root.m_c_sqrt_logN = 0.0;
 
     s_id_generator++;
+
+#ifndef NDEBUG
+    s_avg_depth = 0.0;
+    s_max_depth = 0;
+#endif
     return &root;
+}
+
+void Node::log_stats() {
+    std::cerr << "Total nodes: " << s_id_generator << "\n";
+    std::cerr << "Max depth: " << s_max_depth << "\n";
+    std::cerr << "Average depth: " << s_avg_depth << "\n";
 }
 
 double Node::win_rate() const { return m_win_rate; }
@@ -273,8 +284,8 @@ void Node::expand() {
     int move_arr[MAX_MOVES];
     int num_moves = m_game_state.move_gen_all(move_arr);
     for (int i = 0; i < num_moves; i++) {
-        int cid = Node::s_id_generator;
-        Node::s_id_generator++;
+        int cid = s_id_generator;
+        s_id_generator++;
 #ifndef NDEBUG
         assert(s_id_generator < MAX_NODES);
 #endif
@@ -295,6 +306,11 @@ void Node::expand() {
         child.m_win_rate = 0.0;
         child.m_sqrtN = 0.0;
         child.m_c_sqrt_logN = 0.0;
+#ifndef NDEBUG
+        s_max_depth = std::max(s_max_depth, m_depth + 1);
+        s_avg_depth = (s_avg_depth * (s_id_generator - 1) + (static_cast<double>(m_depth) + 1)) /
+                      static_cast<double>(s_id_generator);
+#endif
     }
 }
 

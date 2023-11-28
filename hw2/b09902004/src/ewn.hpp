@@ -52,6 +52,8 @@ inline int get_random_move(const State&);
 class Node {
    private:
     static inline int s_id_generator{0};
+    static inline int s_max_depth{0};
+    static inline double s_avg_depth{0.0};
 
     State m_game_state;
     int m_ply;
@@ -69,6 +71,8 @@ class Node {
 
    public:
     static Node* create_root(const State& game_state);
+    static void log_stats();
+
     double win_rate() const;
     double UCB_score() const;
     Node* parent() const;

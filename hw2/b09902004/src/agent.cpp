@@ -148,6 +148,9 @@ int MCTS(const ewn::State& current) {
             best_wr = wr_i;
         }
     }
+#ifndef NDEBUG
+    ewn::Node::log_stats();
+#endif
 
     return best_wr_child->ply();
 }
@@ -159,6 +162,9 @@ int main() {
     int move;
 
     do {
+#ifndef NDEBUG
+        std::cerr << "======== Game Start ========\n";
+#endif
         game.init_board();
         my_turn = getchar() == 'f';
         enemy = my_turn ? ewn::BLUE : ewn::RED;
@@ -168,15 +174,15 @@ int main() {
                 game.do_move(move);
             } else {
 #ifndef NDEBUG
-                ewn::reset_simulation_count();
                 std::cerr << "==== Enter MCS() ====\n";
-                game.log_board();
+                // game.log_board();
 #endif
+                ewn::reset_simulation_count();
                 // move = MCS(game);
                 move = MCTS(game);
 #ifndef NDEBUG
                 ewn::log_simulation_count();
-                std::cerr << "Piece: " << (move >> 4) << " Direction: " << (move & 0xf) << "\n";
+                // std::cerr << "Piece: " << (move >> 4) << " Direction: " << (move & 0xf) << "\n";
                 std::cerr << "==== Exit MCS() ====\n";
 #endif
                 game.do_move(move);
@@ -184,5 +190,8 @@ int main() {
             }
             my_turn = !my_turn;
         }
+#ifndef NDEBUG
+        std::cerr << "======== Game End ========\n";
+#endif
     } while (getchar() == 'y');
 }
