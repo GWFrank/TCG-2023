@@ -185,17 +185,20 @@ int State::find_mate_in_1(int move_arr[], int n_moves) const {
         int cube = move >> 4;
         int direction = move & 0xf;
         int dst = m_pos[cube] + dir_val[m_next][direction];
-        if (is_red_cube_fast(cube) && dst == ROW * COL - 1) {
-            return move;
-        }
-        if (is_blue_cube_fast(cube) && dst == 0) {
-            return move;
-        }
-        if (m_num_cubes[RED] == 1 && is_red_cube_fast(dst)) {
-            return move;
-        }
-        if (m_num_cubes[BLUE] == 1 && is_blue_cube_fast(dst)) {
-            return move;
+        if (is_red_cube_fast(cube)) {
+            if (dst == ROW * COL - 1) {
+                return move;
+            }
+            if (m_num_cubes[BLUE] == 1 && is_blue_cube_fast(m_board[dst])) {
+                return move;
+            }
+        } else if (is_blue_cube_fast(cube)) {
+            if (dst == 0) {
+                return move;
+            }
+            if (m_num_cubes[RED] == 1 && is_red_cube_fast(m_board[dst])) {
+                return move;
+            }
         }
     }
     return -1;
@@ -217,11 +220,19 @@ void State::log_board() {
     }
 }
 
-// inline int get_random_move(const State &game) {
-//     int move_arr[MAX_MOVES];
-//     int num_moves = game.move_gen_all(move_arr);
-//     return move_arr[arc4random_uniform(num_moves)];
-// }
+int State::get_score() const {
+#ifndef NDEBUG
+    assert(is_over());
+#endif
+    int score = 0;
+    if (m_num_cubes[RED] == 0 || m_num_cubes[BLUE] == 0) {
+        score += 5;
+    } else {
+        score += 3;
+    }
+
+    return score;
+}
 
 Node *Node::create_root(const State &game_state) {
     Node &root = All_Nodes[0];
@@ -234,6 +245,7 @@ Node *Node::create_root(const State &game_state) {
     root.m_parent_id = -1;
     root.m_n_childs = 0;
     root.m_depth = 0;
+    root.m_is_terminal = root.m_game_state.is_over();
 
     root.m_N = 0;
     root.m_W = 0;
@@ -260,7 +272,9 @@ double Node::win_rate() const { return m_win_rate; }
 
 double Node::UCB_score() const {
     double exploitation = m_win_rate;
-    if (m_depth % 2 == 0) {
+    // double exploitation = m_avg_score / 5;
+    bool seen_from_min_node = (m_depth % 2 == 0);
+    if (seen_from_min_node) {
         exploitation = 1 - exploitation;
     }
     double exploration = All_Nodes[m_parent_id].m_c_sqrt_logN / m_sqrtN;
@@ -300,6 +314,7 @@ void Node::expand() {
         child.m_parent_id = m_id;
         child.m_n_childs = 0;
         child.m_depth = m_depth + 1;
+        child.m_is_terminal = child.m_game_state.is_over();
 
         child.m_N = 0;
         child.m_W = 0;
@@ -317,6 +332,7 @@ void Node::expand() {
 // Simulate SIM_BATCH times and back-propagate the result
 void Node::simulate_and_backward() {
     int wins = 0;
+    int total_score = 0;
     for (int i = 0; i < SIM_BATCH; i++) {
         State sim_state{m_game_state};
         int move_arr[MAX_MOVES];
@@ -330,13 +346,20 @@ void Node::simulate_and_backward() {
             int quick_mate = sim_state.find_mate_in_1(move_arr, n_moves);
             if (quick_mate != -1) {  // Shortcut reaching goal in 1 move
                 sim_state.do_move(quick_mate);
+                // #ifndef NDEBUG
+                //                 std::cerr << "Shortcut during sim!\n";
+                // #endif
                 continue;
             }
             sim_state.do_move(move_arr[arc4random_uniform(n_moves)]);
         }
         bool is_max_node = (m_depth % 2 == 0);
         if ((sim_state.get_winner() == m_game_state.get_round_player()) == is_max_node) {
+            // When "we" wins
             wins++;
+            total_score += sim_state.get_score();
+        } else {
+            total_score += 5 - sim_state.get_score();
         }
     }
 #ifndef NDEBUG
@@ -345,16 +368,18 @@ void Node::simulate_and_backward() {
 
     Node *cur_p = this;
     while (cur_p != nullptr) {
-        cur_p->update(SIM_BATCH, wins);
+        cur_p->update(SIM_BATCH, wins, total_score);
         cur_p = cur_p->parent();
     }
 }
 
-void Node::update(int N, int W) {
+void Node::update(int N, int W, int score) {
     m_N += N;
     m_W += W;
+    m_score += score;
 
     m_win_rate = static_cast<double>(m_W) / static_cast<double>(m_N);
+    m_avg_score = static_cast<double>(m_score) / static_cast<double>(m_N);
     m_sqrtN = std::sqrt(m_N);
     m_c_sqrt_logN = UCB_C * std::sqrt(std::log(m_N));
 }
@@ -376,7 +401,7 @@ Node *Node::find_PV_leaf() {
     return pv_node;
 }
 
-bool Node::should_expand() const { return m_N >= SIM_THRES; }
+bool Node::should_expand() const { return !m_is_terminal && m_N >= SIM_THRES; }
 
 void Node::simulate_and_backward_children() {
     for (int i = 0; i < m_n_childs; i++) {

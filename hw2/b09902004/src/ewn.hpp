@@ -22,7 +22,7 @@ constexpr int MAX_NODES = 1000000;
 constexpr double UCB_C = 1.18;  // Balancing exploitation and exploration
 constexpr int SIM_BATCH = 25;
 constexpr int SIM_THRES = 100;
-constexpr double SEARCH_TIME = 1.9;
+constexpr double SEARCH_TIME = 1.8;
 
 class State {
    private:
@@ -43,6 +43,7 @@ class State {
     int move_gen_all(int* move_arr) const;
     void do_move(int move);
     int find_mate_in_1(int move_arr[], int n_moves) const;
+    int get_score() const;
 
     void log_board();
 };
@@ -62,10 +63,13 @@ class Node {
     int m_child_id[MAX_MOVES];
     int m_n_childs;
     int m_depth;
+    bool m_is_terminal;
     // For calculating UCB
     int m_N;
     int m_W;
+    int m_score;
     double m_win_rate;     // This is always win rate for *us*, regardless of turn player
+    double m_avg_score;    // This is always score for *us*
     double m_sqrtN;        // sqrt(N)
     double m_c_sqrt_logN;  // c*sqrt(log(N))
 
@@ -81,7 +85,7 @@ class Node {
     int n_childs() const;
     void expand();
     void simulate_and_backward();
-    void update(int N, int W);
+    void update(int N, int W, int score);
 
     Node* find_PV_leaf();
     bool should_expand() const;

@@ -22,9 +22,8 @@ void send_move(int move) {
     fflush(stdout);
 }
 
-int MCS(const ewn::State& current) {
-    std::timespec ts_start, ts_now;
-    std::timespec_get(&ts_start, TIME_UTC);
+int MCS(const ewn::State& current, const std::timespec& ts_start) {
+    std::timespec ts_now;
 
     static int move_arr[ewn::MAX_MOVES];
     int n_moves = current.move_gen_all(move_arr);
@@ -94,27 +93,38 @@ int MCS(const ewn::State& current) {
     return best_wr_child->ply();
 }
 
-int MCTS(const ewn::State& current) {
-    std::timespec ts_start, ts_now;
-    std::timespec_get(&ts_start, TIME_UTC);
+int MCTS(const ewn::State& current, const std::timespec& ts_start) {
+    std::timespec ts_now;
 
     static int move_arr[ewn::MAX_MOVES];
     int n_moves = current.move_gen_all(move_arr);
     if (n_moves == 1) {  // Shortcut only 1 legal move
+#ifndef NDEBUG
+        std::cerr << "Shortcut: only 1 legal move\n";
+#endif
         return move_arr[0];
     }
     int quick_mate = current.find_mate_in_1(move_arr, n_moves);
-    if (quick_mate != -1) {  // Shortcut reaching goal in 1 move
+    if (quick_mate != -1) {  // Shortcut winning goal in 1 move
+#ifndef NDEBUG
+        std::cerr << "Shortcut: winning in 1 move\n";
+#endif
         return quick_mate;
     }
 
     ewn::Node* root = ewn::Node::create_root(current);
     root->expand();
 
-    // Initial run
+// Initial run
+#ifndef NDEBUG
+    std::cerr << "Starting initial simulation()\n";
+#endif
     root->simulate_and_backward_children();
 
-    // Find PV's leaf
+// Find PV's leaf
+#ifndef NDEBUG
+    std::cerr << "Finding highest PV's leaf and simulate\n";
+#endif
     while (true) {
         timespec_get(&ts_now, TIME_UTC);
         double wall_clock_time = static_cast<double>(ts_now.tv_sec + ts_now.tv_nsec * 1e-9) -
@@ -132,7 +142,10 @@ int MCTS(const ewn::State& current) {
         }
     }
 
-    // Select the child with highest win rate
+// Select the child with highest win rate
+#ifndef NDEBUG
+    std::cerr << "Selecting best child\n";
+#endif
     ewn::Node* best_wr_child = root->child(0);
     double best_wr = root->child(0)->win_rate();
 #ifndef NDEBUG
@@ -160,29 +173,35 @@ int main() {
     bool my_turn;
     int enemy;
     int move;
+    std::timespec ts_start;
 
     do {
 #ifndef NDEBUG
-        std::cerr << "======== Game Start ========\n";
+        std::cerr << "---------- Game Start ----------\n";
 #endif
         game.init_board();
         my_turn = getchar() == 'f';
         enemy = my_turn ? ewn::BLUE : ewn::RED;
+        std::timespec_get(&ts_start, TIME_UTC);
         while (!game.is_over()) {
             if (!my_turn) {
                 move = recv_move(enemy);
+                std::timespec_get(&ts_start, TIME_UTC);
                 game.do_move(move);
             } else {
 #ifndef NDEBUG
                 std::cerr << "==== Enter MCS() ====\n";
-                // game.log_board();
+                game.log_board();
 #endif
                 ewn::reset_simulation_count();
-                // move = MCS(game);
-                move = MCTS(game);
+#ifdef MCS_ALGO
+                move = MCS(game, ts_start);
+#else
+                move = MCTS(game, ts_start);
+#endif
 #ifndef NDEBUG
                 ewn::log_simulation_count();
-                // std::cerr << "Piece: " << (move >> 4) << " Direction: " << (move & 0xf) << "\n";
+                std::cerr << "Piece: " << (move >> 4) << " Direction: " << (move & 0xf) << "\n";
                 std::cerr << "==== Exit MCS() ====\n";
 #endif
                 game.do_move(move);
@@ -191,7 +210,7 @@ int main() {
             my_turn = !my_turn;
         }
 #ifndef NDEBUG
-        std::cerr << "======== Game End ========\n";
+        std::cerr << "----------- Game End -----------\n";
 #endif
     } while (getchar() == 'y');
 }
