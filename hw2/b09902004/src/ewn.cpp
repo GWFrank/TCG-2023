@@ -220,18 +220,20 @@ void State::log_board() {
     }
 }
 
-int State::get_score() const {
-#ifndef NDEBUG
-    assert(is_over());
-#endif
-    int score = 0;
+double State::get_score() const {
+    double score = 0;
+    constexpr double max_score = 10;
+
     if (m_num_cubes[RED] == 0 || m_num_cubes[BLUE] == 0) {
-        score += 5;
+        score += 10;
     } else {
-        score += 3;
+        score += 9;
     }
 
+    score /= max_score;
+
     return score;
+    // return 1;
 }
 
 Node *Node::create_root(const State &game_state) {
@@ -249,7 +251,9 @@ Node *Node::create_root(const State &game_state) {
 
     root.m_N = 0;
     root.m_W = 0;
+    root.m_score = 0.0;
     root.m_win_rate = 0.0;
+    root.m_avg_score = 0.0;
     root.m_sqrtN = 0.0;
     root.m_c_sqrt_logN = 0.0;
 
@@ -271,8 +275,14 @@ void Node::log_stats() {
 double Node::win_rate() const { return m_win_rate; }
 
 double Node::UCB_score() const {
-    double exploitation = m_win_rate;
-    // double exploitation = m_avg_score / 5;
+    // double exploitation = m_win_rate;
+    double exploitation = m_avg_score;
+    // #ifndef NDEBUG
+    //     assert(exploitation <= 1);
+    //     assert(exploitation >= 0);
+    //     std::cerr << m_win_rate << ", " << m_avg_score << "\n";
+    // #endif
+
     bool seen_from_min_node = (m_depth % 2 == 0);
     if (seen_from_min_node) {
         exploitation = 1 - exploitation;
@@ -318,7 +328,9 @@ void Node::expand() {
 
         child.m_N = 0;
         child.m_W = 0;
+        child.m_score = 0.0;
         child.m_win_rate = 0.0;
+        child.m_avg_score = 0.0;
         child.m_sqrtN = 0.0;
         child.m_c_sqrt_logN = 0.0;
 #ifndef NDEBUG
@@ -332,7 +344,7 @@ void Node::expand() {
 // Simulate SIM_BATCH times and back-propagate the result
 void Node::simulate_and_backward() {
     int wins = 0;
-    int total_score = 0;
+    double total_score = 0;
     for (int i = 0; i < SIM_BATCH; i++) {
         State sim_state{m_game_state};
         int move_arr[MAX_MOVES];
@@ -359,7 +371,7 @@ void Node::simulate_and_backward() {
             wins++;
             total_score += sim_state.get_score();
         } else {
-            total_score += 5 - sim_state.get_score();
+            total_score += 1 - sim_state.get_score();
         }
     }
 #ifndef NDEBUG
@@ -373,7 +385,7 @@ void Node::simulate_and_backward() {
     }
 }
 
-void Node::update(int N, int W, int score) {
+void Node::update(int N, int W, double score) {
     m_N += N;
     m_W += W;
     m_score += score;
