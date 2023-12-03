@@ -233,7 +233,6 @@ double State::get_score() const {
     score /= max_score;
 
     return score;
-    // return 1;
 }
 
 Node *Node::create_root(const State &game_state) {
@@ -252,8 +251,11 @@ Node *Node::create_root(const State &game_state) {
     root.m_N = 0;
     root.m_W = 0;
     root.m_score = 0.0;
+    root.m_score_sq = 0.0;
     root.m_win_rate = 0.0;
     root.m_avg_score = 0.0;
+    root.m_avg_score_sq = 0.0;
+    root.m_var_score = 0.0;
     root.m_sqrtN = 0.0;
     root.m_c_sqrt_logN = 0.0;
 
@@ -277,17 +279,15 @@ double Node::win_rate() const { return m_win_rate; }
 double Node::UCB_score() const {
     // double exploitation = m_win_rate;
     double exploitation = m_avg_score;
-    // #ifndef NDEBUG
-    //     assert(exploitation <= 1);
-    //     assert(exploitation >= 0);
-    //     std::cerr << m_win_rate << ", " << m_avg_score << "\n";
-    // #endif
 
     bool seen_from_min_node = (m_depth % 2 == 0);
     if (seen_from_min_node) {
         exploitation = 1 - exploitation;
     }
+
     double exploration = All_Nodes[m_parent_id].m_c_sqrt_logN / m_sqrtN;
+    double V = m_var_score + UCB_C1 * All_Nodes[m_parent_id].m_c_sqrt_logN / m_sqrtN;
+    exploration *= std::min(V, UCB_C2);
     return exploitation + exploration;
 }
 
@@ -389,9 +389,12 @@ void Node::update(int N, int W, double score) {
     m_N += N;
     m_W += W;
     m_score += score;
+    m_score_sq += score * score;
 
     m_win_rate = static_cast<double>(m_W) / static_cast<double>(m_N);
     m_avg_score = static_cast<double>(m_score) / static_cast<double>(m_N);
+    m_avg_score_sq = static_cast<double>(m_score_sq) / static_cast<double>(m_N);
+    m_var_score = m_avg_score_sq - m_avg_score * m_avg_score_sq;
     m_sqrtN = std::sqrt(m_N);
     m_c_sqrt_logN = UCB_C * std::sqrt(std::log(m_N));
 }

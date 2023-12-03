@@ -19,7 +19,9 @@ constexpr int MAX_MOVES = 8;
 constexpr int MAX_NODES = 1000000;
 
 // Tunable parameters
-constexpr double UCB_C = 1.18;  // Balancing exploitation and exploration
+constexpr double UCB_C = 1.0;  // Balancing exploitation and exploration
+constexpr double UCB_C1 = 1.414;
+constexpr double UCB_C2 = 0.25;
 constexpr int SIM_BATCH = 25;
 constexpr int SIM_THRES = 200;
 constexpr double SEARCH_TIME = 1.8;
@@ -68,8 +70,11 @@ class Node {
     int m_N;
     int m_W;
     double m_score;
-    double m_win_rate;     // This is always win rate for *us*, regardless of turn player
-    double m_avg_score;    // This is always score for *us*
+    double m_score_sq;
+    double m_win_rate;   // This is always win rate for *us*, regardless of turn player
+    double m_avg_score;  // This is always score for *us*
+    double m_avg_score_sq;
+    double m_var_score;
     double m_sqrtN;        // sqrt(N)
     double m_c_sqrt_logN;  // c*sqrt(log(N))
 
