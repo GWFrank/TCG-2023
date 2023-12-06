@@ -19,12 +19,13 @@ constexpr int MAX_MOVES = 8;
 constexpr int MAX_NODES = 1000000;
 
 // Tunable parameters
-constexpr double UCB_C = 1.0;  // Balancing exploitation and exploration
+constexpr double UCB_C = 0.6;  // Balancing exploitation and exploration
 constexpr double UCB_C1 = 1.414;
 constexpr double UCB_C2 = 0.25;
 constexpr int SIM_BATCH = 25;
 constexpr int SIM_THRES = 200;
 constexpr double SEARCH_TIME = 1.8;
+constexpr double TEMP_K = 40;
 
 class State {
    private:

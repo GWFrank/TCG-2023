@@ -4,6 +4,7 @@
 #include <ctime>
 
 #include <iostream>
+#include <random>
 
 #include "ewn.hpp"
 
@@ -146,7 +147,36 @@ int MCTS(const ewn::State& current, const std::timespec& ts_start) {
 #ifndef NDEBUG
     std::cerr << "Selecting best child\n";
 #endif
-    ewn::Node* best_wr_child = root->child(0);
+
+    ewn::Node* best_wr_child = nullptr;
+
+#ifdef TEMPERATURE
+    double kv[ewn::MAX_MOVES];
+    kv[0] = std::exp(ewn::TEMP_K * root->child(0)->win_rate());
+    for (int i = 1; i < root->n_childs(); i++) {
+        kv[i] = kv[i - 1] + std::exp(ewn::TEMP_K * root->child(i)->win_rate());
+    }
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(0.0, kv[root->n_childs() - 1]);
+    double rand_i = dis(gen);
+    for (int i = 0; i < root->n_childs(); i++) {
+        if (i == 0) {
+            if (rand_i < kv[i] && rand_i >= 0) {
+                best_wr_child = root->child(i);
+                break;
+            }
+        } else {
+            if (rand_i < kv[i] && rand_i >= kv[i - 1]) {
+                best_wr_child = root->child(i);
+                break;
+            }
+        }
+    }
+
+#else
+
+    best_wr_child = root->child(0);
     double best_wr = root->child(0)->win_rate();
 #ifndef NDEBUG
     std::cerr << "Child 0 win rate: " << best_wr << "\n";
@@ -161,6 +191,8 @@ int MCTS(const ewn::State& current, const std::timespec& ts_start) {
             best_wr = wr_i;
         }
     }
+#endif
+
 #ifndef NDEBUG
     ewn::Node::log_stats();
 #endif
