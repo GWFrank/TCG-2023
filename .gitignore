@@ -1,4 +1,6 @@
 /slides/
+/ewn_client/
+*.zip
 
 # Dolphin files
 .directory
