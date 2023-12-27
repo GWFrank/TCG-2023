@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        ".clang-format": "plaintext",
+        "string": "cpp",
+        "format": "cpp",
+        "random": "cpp",
+        "chrono": "cpp"
+    },
+    "C_Cpp.default.compilerPath": "/usr/bin/g++"
+}

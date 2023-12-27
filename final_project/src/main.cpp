@@ -1,13 +1,14 @@
 #include <stdio.h>
 #include <string.h>
-#include "MyAI.h"
+
+#include "agent.h"
 
 int main() {
     srand(time(NULL));
     char read[1024], write[1024], output[2048], *token;
     const char *data[20];
-    bool isFailed;
-    MyAI myai;
+    // bool isFailed;
+    ewn::Agent myai;
     do {
         // read command
         fgets(read, 1024, stdin);
