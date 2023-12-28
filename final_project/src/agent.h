@@ -27,14 +27,15 @@ constexpr int k_command_num = 7;
 // Magic numbers
 constexpr int k_no_dice = 0;
 constexpr int k_no_piece = 0;
-constexpr int k_off_board = -1;
+constexpr int k_off_board_pos = -1;
 constexpr int k_blue_goal = 0;
 constexpr int k_red_goal = k_board_size * k_board_size - 1;
-constexpr score_t k_epsilon = 0.001;
-
-constexpr int k_search_depth = 12;
+constexpr score_t k_epsilon = 0.01;
+constexpr int k_rounding_decimals = 2;
+constexpr move_t k_null_move = -1;
 
 // Algorithm-related
+constexpr int k_search_depth = 12;
 constexpr score_t k_max_score = 100;
 constexpr score_t k_min_score = -k_max_score;
 
@@ -99,6 +100,9 @@ class State {
     int m_red_piece_num, m_blue_piece_num;
     int m_history_len;
 
+    move_t find_mate(int move_arr[], int n_moves) const;
+    move_t defend_mate(int move_arr[], int n_moves) const;
+
    public:
     State();
     State(const Agent* agent);
@@ -118,6 +122,8 @@ class State {
 
     void log_self() const;
     bool check_equal(const State& rhs) const;
+
+    move_t shortcut() const;
 };
 }  // namespace ewn
 #endif

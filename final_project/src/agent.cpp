@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
+#include <cstdint>
 
 #include <algorithm>
 #include <iostream>
@@ -21,6 +22,11 @@ inline int next_player(int x) {
     if (x == k_blue) return k_red;
     fprintf(stderr, "Unexpected player color %d", x);
     exit(1);
+}
+
+inline score_t round_up(score_t score) {
+    const double multiplier = std::pow(10.0, k_rounding_decimals);
+    return std::round(score * multiplier) / multiplier;
 }
 
 Agent::Agent(void) {}
@@ -186,21 +192,37 @@ void Agent::Generate_move(char move[]) {
     int end_point = result[rand_move * 3 + 2];
 #else
     State current_state = State(this);
+    move_t move_found = k_null_move;
 #ifndef NDEBUG
+    score_t expected_score = 0;
     current_state.log_self();
 #endif
-    move_score search_result = negascout(current_state, k_min_score - 1, k_max_score + 1, k_search_depth);
+
+    move_t shortcut_move = current_state.shortcut();
+    if (shortcut_move == k_null_move) {
+        move_score search_result = negascout(current_state, k_min_score - 1, k_max_score + 1, k_search_depth);
+        // #ifndef NDEBUG
+        //     fprintf(stderr, "After searching...\n");
+        //     current_state.log_self();
+        // #endif
+        move_found = search_result.first;
 #ifndef NDEBUG
-    fprintf(stderr, "After searching...\n");
-    current_state.log_self();
+        expected_score = search_result.second;
 #endif
+    } else {
+        move_found = shortcut_move;
+#ifndef NDEBUG
+        expected_score = 2 * k_max_score;
+#endif
+    }
+
     int agent_move[3] = {-1};
-    current_state.to_agent_move(search_result.first, agent_move);
+    current_state.to_agent_move(move_found, agent_move);
     int piece = agent_move[0];
     int start_point = agent_move[1];
     int end_point = agent_move[2];
 #ifndef NDEBUG
-    fprintf(stderr, "Move: %d\nExpected score: %f\n", search_result.first, search_result.second);
+    fprintf(stderr, "Move: %d\nExpected score: %f\n", move_found, expected_score);
     fprintf(stderr, "Piece: %d\n", piece);
     fprintf(stderr, "Start point: %d\nEnd point: %d\n", start_point, end_point);
 #endif
@@ -417,11 +439,11 @@ move_score Agent::negascout(State& state, score_t alpha, score_t beta, int depth
         score_t hi_bound = beta;
         move_score tmp_ret;
         score_t tmp;
-        int move_arr[k_max_moves];
+        move_t move_arr[k_max_moves];
         int num_moves = state.move_gen_all(move_arr);
-#ifndef NDEBUG
-        const State og_state(state);
-#endif
+        // #ifndef NDEBUG
+        //         const State og_state(state);
+        // #endif
 
         // In case all moves are losing.
         result.first = move_arr[0];
@@ -429,21 +451,21 @@ move_score Agent::negascout(State& state, score_t alpha, score_t beta, int depth
 
         for (int i = 0; i < num_moves; i++) {
             state.do_move(move_arr[i]);
-#ifndef NDEBUG
-            State after_move(state);
-#endif
+            // #ifndef NDEBUG
+            //             State after_move(state);
+            // #endif
 
             tmp_ret = negascout(state, -hi_bound, -std::max(alpha, lo_bound), depth - 1);
 
             tmp = -tmp_ret.second;
-#ifndef NDEBUG
-            // state.log_self();
-            // fprintf(stderr, "evaluation: %f\n", state.evaluate());
-            if (depth == k_search_depth) {
-                fprintf(stderr, "alpha: %f, beta: %f\n", alpha, beta);
-                fprintf(stderr, "lo_bound: %f hi_bound: %f tmp score: %f\n", lo_bound, hi_bound, tmp);
-            }
-#endif
+            // #ifndef NDEBUG
+            //             // state.log_self();
+            //             // fprintf(stderr, "evaluation: %f\n", state.evaluate());
+            //             if (depth == k_search_depth) {
+            //                 fprintf(stderr, "alpha: %f, beta: %f\n", alpha, beta);
+            //                 fprintf(stderr, "lo_bound: %f hi_bound: %f tmp score: %f\n", lo_bound, hi_bound, tmp);
+            //             }
+            // #endif
             if (tmp > lo_bound) {
                 if (hi_bound == beta || depth < 3 || tmp >= beta) {
                     lo_bound = tmp;
@@ -453,22 +475,23 @@ move_score Agent::negascout(State& state, score_t alpha, score_t beta, int depth
                 }
                 result.first = move_arr[i];
                 result.second = lo_bound;
-#ifndef NDEBUG
-                if (depth == k_search_depth) {
-                    fprintf(stderr, "assign result, move=%d, score=%f\n", result.first, result.second);
-                }
-#endif
+                // #ifndef NDEBUG
+                //                 if (depth == k_search_depth) {
+                //                     fprintf(stderr, "assign result, move=%d, score=%f\n", result.first,
+                //                     result.second);
+                //                 }
+                // #endif
             }
             state.undo();
-#ifndef NDEBUG
-            bool consistent = og_state.check_equal(state);
-            if (!consistent) {
-                fprintf(stderr, "state after move:\n");
-                after_move.log_self();
-                fprintf(stderr, "move: %d\n", move_arr[i]);
-                exit(1);
-            }
-#endif
+            // #ifndef NDEBUG
+            //             bool consistent = og_state.check_equal(state);
+            //             if (!consistent) {
+            //                 fprintf(stderr, "state after move:\n");
+            //                 after_move.log_self();
+            //                 fprintf(stderr, "move: %d\n", move_arr[i]);
+            //                 exit(1);
+            //             }
+            // #endif
             if (lo_bound >= k_max_score || lo_bound >= beta) {
                 return result;
             }
@@ -481,13 +504,34 @@ move_score Agent::negascout(State& state, score_t alpha, score_t beta, int depth
 move_score Agent::negascout_chance(State& state, score_t alpha, score_t beta, int depth) {
     move_score result, tmp_ret;
     result.first = -1;
-    for (int dice_roll = 1; dice_roll <= k_piece_num; dice_roll++) {
+    result.second = 0;
+    const int total_choice = k_piece_num;
+    score_t A = total_choice * (alpha - k_max_score) + k_max_score;
+    score_t B = total_choice * (beta - k_min_score) + k_min_score;
+    score_t lo_bound = k_min_score, hi_bound = k_max_score;
+
+    for (int dice_roll = 1; dice_roll <= total_choice; dice_roll++) {
         state.set_dice(dice_roll);
-        tmp_ret = negascout(state, alpha, beta, depth);
-        result.second += tmp_ret.second;
+        tmp_ret = negascout(state, std::max(A, k_min_score), std::min(B, k_max_score), depth);
+
+        score_t v_i = tmp_ret.second;
+        lo_bound = lo_bound + (v_i - lo_bound) / total_choice;
+        hi_bound = hi_bound + (v_i - hi_bound) / total_choice;
+        if (v_i >= B) {
+            result.second = lo_bound;
+            goto negascout_chance_return;
+        }
+        if (v_i <= A) {
+            result.second = hi_bound;
+            goto negascout_chance_return;
+        }
+        result.second += v_i;
+        A = A + k_max_score - v_i;
+        B = B + k_min_score - v_i;
         state.unset_dice();
     }
-    result.second /= k_piece_num;
+    result.second = round_up(result.second / total_choice);
+negascout_chance_return:
     return result;
 }
 
@@ -503,7 +547,7 @@ State::State(const Agent* agent) {
     m_history_len = 0;
 
     for (int i = 0; i <= 2 * k_piece_num; i++) {
-        m_pos[i] = k_off_board;
+        m_pos[i] = k_off_board_pos;
     }
 
     for (int row = 0; row < m_board_size; row++) {
@@ -562,7 +606,7 @@ void State::do_move(move_t move) {
         } else {
             m_blue_piece_num--;
         }
-        m_pos[piece_on_dst] = k_off_board;
+        m_pos[piece_on_dst] = k_off_board_pos;
         move |= piece_on_dst << 8;
     } else {
         move |= k_no_piece << 8;
@@ -639,25 +683,15 @@ int State::move_gen_all(move_t move_arr[]) const {
     const int offset = (m_round_color == k_blue) ? 0 : k_piece_num;  // blue is 1 ~ 6
     const int* const self_pos = m_pos + offset;
 
-    if (self_pos[m_dice] == k_off_board) {
-        int small = m_dice - 1, large = m_dice + 1;
-        while (small > k_no_piece && self_pos[small] == k_off_board) {
-            small--;
-        }
-        while (large <= k_piece_num && self_pos[large] == k_off_board) {
-            large++;
-        }
-
-        if (small > k_no_piece) {
-            count += move_gen_single(move_arr, small + offset, self_pos[small]);
-        }
-        if (large <= k_piece_num) {
-            count += move_gen_single(move_arr + count, large + offset, self_pos[large]);
-        }
-    } else {
-        count = move_gen_single(move_arr, m_dice + offset, self_pos[m_dice]);
+    int32_t board_idx = 0;
+    for (int piece = 1; piece <= k_piece_num; piece++) {
+        board_idx |= static_cast<int>(self_pos[piece] != k_off_board_pos) << (piece - 1);
     }
-
+    int moveable_count = precompute::movable_pieces_count[m_dice][board_idx];
+    for (int i = 0; i < moveable_count; i++) {
+        int to_move = precompute::movable_pieces[m_dice][board_idx][i];
+        count += move_gen_single(move_arr + count, to_move + offset, self_pos[to_move]);
+    }
     return count;
 }
 
@@ -820,6 +854,69 @@ check_equal_fail:
     log_self();
     rhs.log_self();
     return false;
+}
+
+move_t State::find_mate(int move_arr[], int n_moves) const {
+    for (int i = 0; i < n_moves; i++) {
+        int move = move_arr[i];
+        int piece = (move >> 4) & 0xf;
+        int direction = (move) & 0xf;
+        int dst = m_pos[piece] + dir_val[m_round_color][direction];
+
+        if (m_round_color == k_red) {
+            if (dst == k_red_goal) {
+                return move;
+            }
+            if (m_blue_piece_num == 1 && is_blue_piece(m_board[dst])) {
+                return move;
+            }
+        } else if (m_round_color == k_blue) {
+            if (dst == k_blue_goal) {
+                return move;
+            }
+            if (m_red_piece_num == 1 && is_red_piece(m_board[dst])) {
+                return move;
+            }
+        }
+    }
+    return k_null_move;
+}
+
+move_t State::defend_mate(int move_arr[], int n_moves) const {
+    for (int i = 0; i < n_moves; i++) {
+        int move = move_arr[i];
+        int piece = (move >> 4) & 0xf;
+        int direction = (move) & 0xf;
+        int dst = m_pos[piece] + dir_val[m_round_color][direction];
+
+        if (m_round_color == k_red) {
+            if (l_inf_distance(dst, k_red_goal) == 1 && is_blue_piece(m_board[dst])) {
+                return move;
+            }
+        } else if (m_round_color == k_blue) {
+            if (l_inf_distance(dst, k_blue_goal) == 1 && is_red_piece(m_board[dst])) {
+                return move;
+            }
+        }
+    }
+    return k_null_move;
+}
+
+move_t State::shortcut() const {
+    move_t move_arr[k_max_moves];
+    int num_moves = move_gen_all(move_arr);
+
+    move_t attack = find_mate(move_arr, num_moves);
+    if (attack != k_null_move) {
+        return attack;
+    }
+
+    move_t defend = defend_mate(move_arr, num_moves);
+    if (defend != k_null_move) {
+        return defend;
+    }
+
+    return k_null_move;
 }
 
 }  // namespace ewn
