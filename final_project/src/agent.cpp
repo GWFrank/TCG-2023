@@ -8,6 +8,7 @@
 #include <iostream>
 
 #include "agent.h"
+#include "precompute.h"
 
 namespace ewn {
 
@@ -594,15 +595,15 @@ void State::undo() {
     int direction = move & 0xf;
     int src = m_pos[piece] - dir_val[m_round_color][direction];
 
-#ifndef NDEBUG
-    fprintf(stderr, "history idx: %d ", m_history_len);
-    fprintf(stderr, "dice: %d ", dice);
-    fprintf(stderr, "eaten_piece: %d ", eaten_piece);
-    fprintf(stderr, "piece: %d ", piece);
-    fprintf(stderr, "direction: %d ", direction);
-    fprintf(stderr, "src: %d ", src);
-    fprintf(stderr, "\n");
-#endif
+    // #ifndef NDEBUG
+    //     fprintf(stderr, "history idx: %d ", m_history_len);
+    //     fprintf(stderr, "dice: %d ", dice);
+    //     fprintf(stderr, "eaten_piece: %d ", eaten_piece);
+    //     fprintf(stderr, "piece: %d ", piece);
+    //     fprintf(stderr, "direction: %d ", direction);
+    //     fprintf(stderr, "src: %d ", src);
+    //     fprintf(stderr, "\n");
+    // #endif
 
     if (eaten_piece != k_no_piece) {
         if (is_red_piece(eaten_piece)) {
@@ -626,33 +627,10 @@ void State::undo() {
 }
 
 int move_gen_single(move_t move_arr[], int piece, int location) {
-    int count = 0;
-    const int piece_row = location / k_board_size;
-    const int piece_col = location % k_board_size;
-    bool h_ok;  // horizontal movement
-    bool v_ok;  // vertical movement
-
-    if (is_red_piece(piece)) {  // Goes right and down
-        h_ok = (piece_col != k_board_size - 1);
-        v_ok = (piece_row != k_board_size - 1);
-    } else {  // Goes left and up
-        h_ok = (piece_col != 0);
-        v_ok = (piece_row != 0);
+    int count = precompute::move_gen_single_count[piece][location];
+    for (int i = 0; i < count; i++) {
+        move_arr[i] = precompute::move_gen_single[piece][location][i];
     }
-
-    if (h_ok) {
-        move_arr[count] = piece << 4 | 0;  // 0 is index in dir_val
-        count++;
-    }
-    if (v_ok) {
-        move_arr[count] = piece << 4 | 1;
-        count++;
-    }
-    if (h_ok && v_ok) {
-        move_arr[count] = piece << 4 | 2;
-        count++;
-    }
-
     return count;
 }
 
@@ -707,47 +685,15 @@ int l_inf_distance(int pos_a, int pos_b) {
     if (pos_a == -1 || pos_b == -1) {  // piece eaten, can't make it
         return 314159;
     }
-
-    // int x_a = pos_a % k_board_size, y_a = pos_a / k_board_size;
-    // int x_b = pos_b % k_board_size, y_b = pos_b / k_board_size;
-    // return std::max(std::abs(x_b - x_a), std::abs(y_b - y_a));
-
-    const static int precomputed[25][25] = {
-        {0, 1, 2, 3, 4, 1, 1, 2, 3, 4, 2, 2, 2, 3, 4, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4},
-        {1, 0, 1, 2, 3, 1, 1, 1, 2, 3, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4},
-        {2, 1, 0, 1, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4},
-        {3, 2, 1, 0, 1, 3, 2, 1, 1, 1, 3, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4},
-        {4, 3, 2, 1, 0, 4, 3, 2, 1, 1, 4, 3, 2, 2, 2, 4, 3, 3, 3, 3, 4, 4, 4, 4, 4},
-        {1, 1, 2, 3, 4, 0, 1, 2, 3, 4, 1, 1, 2, 3, 4, 2, 2, 2, 3, 4, 3, 3, 3, 3, 4},
-        {1, 1, 1, 2, 3, 1, 0, 1, 2, 3, 1, 1, 1, 2, 3, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3},
-        {2, 1, 1, 1, 2, 2, 1, 0, 1, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3},
-        {3, 2, 1, 1, 1, 3, 2, 1, 0, 1, 3, 2, 1, 1, 1, 3, 2, 2, 2, 2, 3, 3, 3, 3, 3},
-        {4, 3, 2, 1, 1, 4, 3, 2, 1, 0, 4, 3, 2, 1, 1, 4, 3, 2, 2, 2, 4, 3, 3, 3, 3},
-        {2, 2, 2, 3, 4, 1, 1, 2, 3, 4, 0, 1, 2, 3, 4, 1, 1, 2, 3, 4, 2, 2, 2, 3, 4},
-        {2, 2, 2, 2, 3, 1, 1, 1, 2, 3, 1, 0, 1, 2, 3, 1, 1, 1, 2, 3, 2, 2, 2, 2, 3},
-        {2, 2, 2, 2, 2, 2, 1, 1, 1, 2, 2, 1, 0, 1, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2, 2},
-        {3, 2, 2, 2, 2, 3, 2, 1, 1, 1, 3, 2, 1, 0, 1, 3, 2, 1, 1, 1, 3, 2, 2, 2, 2},
-        {4, 3, 2, 2, 2, 4, 3, 2, 1, 1, 4, 3, 2, 1, 0, 4, 3, 2, 1, 1, 4, 3, 2, 2, 2},
-        {3, 3, 3, 3, 4, 2, 2, 2, 3, 4, 1, 1, 2, 3, 4, 0, 1, 2, 3, 4, 1, 1, 2, 3, 4},
-        {3, 3, 3, 3, 3, 2, 2, 2, 2, 3, 1, 1, 1, 2, 3, 1, 0, 1, 2, 3, 1, 1, 1, 2, 3},
-        {3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 2, 2, 1, 0, 1, 2, 2, 1, 1, 1, 2},
-        {3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 3, 2, 1, 1, 1, 3, 2, 1, 0, 1, 3, 2, 1, 1, 1},
-        {4, 3, 3, 3, 3, 4, 3, 2, 2, 2, 4, 3, 2, 1, 1, 4, 3, 2, 1, 0, 4, 3, 2, 1, 1},
-        {4, 4, 4, 4, 4, 3, 3, 3, 3, 4, 2, 2, 2, 3, 4, 1, 1, 2, 3, 4, 0, 1, 2, 3, 4},
-        {4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 2, 2, 2, 2, 3, 1, 1, 1, 2, 3, 1, 0, 1, 2, 3},
-        {4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 2, 2, 1, 0, 1, 2},
-        {4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 3, 2, 1, 1, 1, 3, 2, 1, 0, 1},
-        {4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 4, 3, 2, 2, 2, 4, 3, 2, 1, 1, 4, 3, 2, 1, 0},
-    };
-    return precomputed[pos_a][pos_b];
+    return precompute::l_inf_distance[pos_a][pos_b];
 }
 
 score_t State::evaluate() {
     // Game is over
     if (is_over()) {
-#ifndef NDEBUG
-        std::cerr << "Evaluating final position\n";
-#endif
+        // #ifndef NDEBUG
+        //         std::cerr << "Evaluating final position\n";
+        // #endif
         if (winner() == m_round_color) {
             return k_max_score;
         } else {
