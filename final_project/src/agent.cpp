@@ -471,7 +471,7 @@ move_score Agent::negascout(State& state, score_t alpha, score_t beta, int depth
             if (lo_bound >= k_max_score || lo_bound >= beta) {
                 return result;
             }
-            hi_bound = std::max(alpha, lo_bound) + 1;  // for null-window
+            hi_bound = std::max(alpha, lo_bound) + k_epsilon;  // for null-window
         }
         return result;
     }

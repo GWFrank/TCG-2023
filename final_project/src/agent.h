@@ -13,6 +13,10 @@
 
 namespace ewn {
 
+using score_t = double;
+using move_t = int32_t;  // | unused | dice (4) | eaten piece (4) | moving piece (4) | direction (4) |
+using move_score = std::pair<move_t, score_t>;  // First item is the move, second item is the score
+
 // Environment-related, don't touch
 constexpr int k_red = 0;
 constexpr int k_blue = 1;
@@ -26,13 +30,11 @@ constexpr int k_no_piece = 0;
 constexpr int k_off_board = -1;
 constexpr int k_blue_goal = 0;
 constexpr int k_red_goal = k_board_size * k_board_size - 1;
+constexpr score_t k_epsilon = 0.001;
 
-constexpr int k_search_depth = 4;
+constexpr int k_search_depth = 12;
 
 // Algorithm-related
-using score_t = double;
-using move_t = int32_t;  // | unused | dice (4) | eaten piece (4) | moving piece (4) | direction (4) |
-using move_score = std::pair<move_t, score_t>;  // First item is the move, second item is the score
 constexpr score_t k_max_score = 100;
 constexpr score_t k_min_score = -k_max_score;
 
