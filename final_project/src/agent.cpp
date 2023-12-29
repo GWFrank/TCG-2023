@@ -732,20 +732,20 @@ score_t State::evaluate() {
     }
 
     score_t blue_min_dist = 100, red_min_dist = 100;
-    int total_choice = k_piece_num;
+    // int total_choice = k_piece_num;
 
     for (int piece = 1; piece <= 6; piece++) {
         if (m_pos[piece] == k_off_board_pos) continue;
         score_t dist = static_cast<score_t>(l_inf_distance(m_pos[piece], k_blue_goal));
-        dist /= static_cast<score_t>(precompute::determinacy[blue_idx][piece]);
-        dist *= total_choice;
+        // dist /= static_cast<score_t>(precompute::determinacy[blue_idx][piece]);
+        // dist *= total_choice;
         blue_min_dist = std::min(blue_min_dist, dist);
     }
     for (int piece = 7; piece <= 12; piece++) {
         if (m_pos[piece] == k_off_board_pos) continue;
         score_t dist = static_cast<score_t>(l_inf_distance(m_pos[piece], k_red_goal));
-        dist /= static_cast<score_t>(precompute::determinacy[red_idx][piece - k_piece_num]);
-        dist *= total_choice;
+        // dist /= static_cast<score_t>(precompute::determinacy[red_idx][piece - k_piece_num]);
+        // dist *= total_choice;
         red_min_dist = std::min(red_min_dist, dist);
     }
 
