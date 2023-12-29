@@ -16,6 +16,8 @@ namespace ewn {
 using score_t = double;
 using move_t = int32_t;  // | unused | dice (4) | eaten piece (4) | moving piece (4) | direction (4) |
 using move_score = std::pair<move_t, score_t>;  // First item is the move, second item is the score
+using hash_t = uint64_t;
+using score_flag_t = int;
 
 // Environment-related, don't touch
 constexpr int k_red = 0;
@@ -30,12 +32,13 @@ constexpr int k_no_piece = 0;
 constexpr int k_off_board_pos = -1;
 constexpr int k_blue_goal = 0;
 constexpr int k_red_goal = k_board_size * k_board_size - 1;
-constexpr score_t k_epsilon = 0.01;
+constexpr score_t k_window_epsilon = 0.001;
+constexpr score_t k_cmp_epsilon = 0.001;
 constexpr int k_rounding_decimals = 2;
 constexpr move_t k_null_move = -1;
 
 // Algorithm-related
-constexpr int k_search_depth = 12;
+constexpr int k_search_depth = 4;
 constexpr score_t k_max_score = 100;
 constexpr score_t k_min_score = -k_max_score;
 
@@ -44,6 +47,7 @@ constexpr int k_max_history = 50;
 
 class Agent;
 class State;
+struct tt_entry;
 
 class Agent {
     const char* commands_name[k_command_num] = {"name", "version", "time_setting", "board_setting",
@@ -100,8 +104,13 @@ class State {
     int m_red_piece_num, m_blue_piece_num;
     int m_history_len;
 
+    hash_t m_zobrist_hash;
+
     move_t find_mate(int move_arr[], int n_moves) const;
     move_t defend_mate(int move_arr[], int n_moves) const;
+
+    score_t distance_h() const;
+    score_t determinacy_h() const;
 
    public:
     State();
@@ -111,12 +120,15 @@ class State {
     bool is_over() const;
     int winner() const;
 
+    int get_round_color() const;
+    hash_t get_hash_value() const;
+
     void do_move(move_t move);
     void undo();
     int move_gen_all(move_t move_arr[]) const;
     void set_dice(int dice);
     void unset_dice();
-    score_t evaluate();  // + means good for round player, - means bad for round player
+    score_t evaluate() const;  // + means good for round player, - means bad for round player
 
     void to_agent_move(move_t move, int agent_move[3]) const;
 
@@ -125,5 +137,20 @@ class State {
 
     move_t shortcut() const;
 };
+
+constexpr int tt_size_bits = 17;
+constexpr hash_t tt_index_mask = (1 << tt_size_bits) - 1;
+constexpr score_flag_t k_is_exact = 0;
+constexpr score_flag_t k_is_upper_bound = 1;
+constexpr score_flag_t k_is_lower_bound = 2;
+
+struct tt_entry {
+    bool valid{false};
+    hash_t hash_key{0};
+    score_t position_score{0};
+    int depth{-1};
+    score_flag_t score_type{k_is_exact};
+};
+
 }  // namespace ewn
 #endif

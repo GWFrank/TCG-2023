@@ -17,7 +17,7 @@ agent_debug: $(SOURCES)
 	g++ $(CXXFLAGS_DEBUG) $(DEBUG) src/main.cpp src/agent.cpp -o agent_debug
 
 agent_random: $(SOURCES)
-	g++ $(CXXFLAGS_DEBUG) $(DEBUG) $(RANDOM) src/main.cpp src/agent.cpp -o agent_random
+	g++ $(CXXFLAGS_DEBUG) $(RELEASE) $(RANDOM) src/main.cpp src/agent.cpp -o agent_random
 
 
 clean:
