@@ -6,12 +6,11 @@ RANDOM=-D RANDOM_MOVE
 
 SOURCES=src/main.cpp src/agent.cpp src/agent.h src/precompute.h
 
-all: release
+all: agent
 debug: agent_debug
-release: agent_release
 random: agent_random
 
-agent_release: $(SOURCES)
+agent: $(SOURCES)
 	g++ $(CXXFLAGS) $(RELEASE) src/main.cpp src/agent.cpp -o agent
 
 agent_debug: $(SOURCES)

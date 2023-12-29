@@ -226,14 +226,6 @@ void Agent::Generate_move(char move[]) {
     fprintf(stderr, "Piece: %d\n", piece);
     fprintf(stderr, "Start point: %d\nEnd point: %d\n", start_point, end_point);
 #endif
-
-    // get random legal moves
-    // int result[100];
-    // int move_count = this->get_legal_move(result);
-    // int rand_move = rand() % move_count;
-    // int piece = result[rand_move * 3];
-    // int start_point = result[rand_move * 3 + 1];
-    // int end_point = result[rand_move * 3 + 2];
 #endif
     // print the result
     fprintf(stderr, "============================\nMy result:\n");
@@ -530,7 +522,7 @@ move_score Agent::negascout_chance(State& state, score_t alpha, score_t beta, in
         B = B + k_min_score - v_i;
         state.unset_dice();
     }
-    result.second = round_up(result.second / total_choice);
+    result.second = result.second / static_cast<score_t>(total_choice);
 negascout_chance_return:
     return result;
 }
@@ -716,7 +708,7 @@ void State::unset_dice() {
 }
 
 int l_inf_distance(int pos_a, int pos_b) {
-    if (pos_a == -1 || pos_b == -1) {  // piece eaten, can't make it
+    if (pos_a == k_off_board_pos || pos_b == k_off_board_pos) {  // piece eaten, can't make it
         return 314159;
     }
     return precompute::l_inf_distance[pos_a][pos_b];
@@ -725,9 +717,6 @@ int l_inf_distance(int pos_a, int pos_b) {
 score_t State::evaluate() {
     // Game is over
     if (is_over()) {
-        // #ifndef NDEBUG
-        //         std::cerr << "Evaluating final position\n";
-        // #endif
         if (winner() == m_round_color) {
             return k_max_score;
         } else {
@@ -735,15 +724,28 @@ score_t State::evaluate() {
         }
     }
 
-    // Minimum distance to goal
-    int blue_min_dist = 100, red_min_dist = 100;
+    // Minimum distance to goal divided by determinacy
+    int32_t red_idx = 0, blue_idx = 0;
+    for (int piece = 1; piece <= k_piece_num; piece++) {
+        blue_idx |= static_cast<int>(m_pos[piece] != k_off_board_pos) << (piece - 1);
+        red_idx |= static_cast<int>(m_pos[piece + k_piece_num] != k_off_board_pos) << (piece - 1);
+    }
+
+    score_t blue_min_dist = 100, red_min_dist = 100;
+    int total_choice = k_piece_num;
 
     for (int piece = 1; piece <= 6; piece++) {
-        int dist = l_inf_distance(m_pos[piece], k_blue_goal);
+        if (m_pos[piece] == k_off_board_pos) continue;
+        score_t dist = static_cast<score_t>(l_inf_distance(m_pos[piece], k_blue_goal));
+        dist /= static_cast<score_t>(precompute::determinacy[blue_idx][piece]);
+        dist *= total_choice;
         blue_min_dist = std::min(blue_min_dist, dist);
     }
     for (int piece = 7; piece <= 12; piece++) {
-        int dist = l_inf_distance(m_pos[piece], k_red_goal);
+        if (m_pos[piece] == k_off_board_pos) continue;
+        score_t dist = static_cast<score_t>(l_inf_distance(m_pos[piece], k_red_goal));
+        dist /= static_cast<score_t>(precompute::determinacy[red_idx][piece - k_piece_num]);
+        dist *= total_choice;
         red_min_dist = std::min(red_min_dist, dist);
     }
 
@@ -889,12 +891,12 @@ move_t State::defend_mate(int move_arr[], int n_moves) const {
         int direction = (move) & 0xf;
         int dst = m_pos[piece] + dir_val[m_round_color][direction];
 
-        if (m_round_color == k_red) {
-            if (l_inf_distance(dst, k_red_goal) == 1 && is_blue_piece(m_board[dst])) {
+        if (is_red_piece(piece)) {
+            if (is_blue_piece(m_board[dst]) && l_inf_distance(dst, k_blue_goal) == 1) {
                 return move;
             }
-        } else if (m_round_color == k_blue) {
-            if (l_inf_distance(dst, k_blue_goal) == 1 && is_red_piece(m_board[dst])) {
+        } else if (is_blue_piece(piece)) {
+            if (is_red_piece(m_board[dst]) && l_inf_distance(dst, k_red_goal) == 1) {
                 return move;
             }
         }
@@ -908,11 +910,13 @@ move_t State::shortcut() const {
 
     move_t attack = find_mate(move_arr, num_moves);
     if (attack != k_null_move) {
+        fprintf(stderr, "==== Found mate in 1! ====\n");
         return attack;
     }
 
     move_t defend = defend_mate(move_arr, num_moves);
     if (defend != k_null_move) {
+        fprintf(stderr, "==== Found defense! ====\n");
         return defend;
     }
 

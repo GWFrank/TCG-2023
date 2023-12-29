@@ -4,7 +4,8 @@
         "string": "cpp",
         "format": "cpp",
         "random": "cpp",
-        "chrono": "cpp"
+        "chrono": "cpp",
+        "functional": "cpp"
     },
     "C_Cpp.default.compilerPath": "/usr/bin/g++"
 }
