@@ -442,14 +442,15 @@ void Agent::Make_move(const int piece, const int start_point, const int end_poin
 
 move_score Agent::iterative_deepening(State& state) const {
     static int move_count = 1;
-    static double total_budget = 60;
-    double time_per_move = 20;
-    std::ofstream time_usage_log;
-    time_usage_log.open("time_usage.csv", std::ios::app);
+    static double total_budget = k_total_time;
+    double time_per_move = k_time_per_move;
+    // std::ofstream time_usage_log;
+    // time_usage_log.open("time_usage.csv", std::ios::app);
 
     double p_time = 0, pp_time = 0;
     std::timespec ts_id_start, ts_search_start, ts_search_end;
     move_score search_result;
+    double estimated_scaling = 0;
 
     timespec_get(&ts_id_start, TIME_UTC);
     for (int cur_depth = k_start_depth; cur_depth <= k_max_depth; cur_depth += 2) {
@@ -459,7 +460,7 @@ move_score Agent::iterative_deepening(State& state) const {
         }
 
         if (pp_time != 0) {
-            double estimated_scaling = p_time / pp_time;
+            estimated_scaling = 0.2 * estimated_scaling + 0.8 * (p_time / pp_time);
             double estimated_time = p_time * estimated_scaling + seconds_elapsed(ts_id_start, ts_search_start);
             if (estimated_time > time_per_move) {
                 break;
@@ -472,8 +473,8 @@ move_score Agent::iterative_deepening(State& state) const {
         search_result = negascout(state, k_min_score - 1, k_max_score + 1, cur_depth);
         timespec_get(&ts_search_end, TIME_UTC);
         fprintf(stderr, "Search time for depth %d: %f s\n", cur_depth, seconds_elapsed(ts_search_start, ts_search_end));
-        time_usage_log << move_count << "," << cur_depth << "," << seconds_elapsed(ts_search_start, ts_search_end)
-                       << "\n";
+        // time_usage_log << move_count << "," << cur_depth << "," << seconds_elapsed(ts_search_start, ts_search_end)
+        //                << "\n";
         pp_time = p_time;
         p_time = seconds_elapsed(ts_search_start, ts_search_end);
     }
@@ -484,7 +485,7 @@ move_score Agent::iterative_deepening(State& state) const {
     fprintf(stderr, "Time spent on move %d: %f s\n", move_count, seconds_elapsed(ts_id_start, ts_id_end));
     fprintf(stderr, "Time left: %f s\n", total_budget);
     move_count++;
-    time_usage_log.close();
+    // time_usage_log.close();
     return search_result;
 }
 

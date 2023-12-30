@@ -40,7 +40,9 @@ constexpr int k_star0 = 0;
 constexpr int k_star1 = 1;
 
 // Algorithm-related
-constexpr int k_start_depth = 4, k_max_depth = 30;
+constexpr int k_start_depth = 4, k_max_depth = 24;
+constexpr double k_total_time = 50;
+constexpr double k_time_per_move = 15;
 constexpr score_t k_max_score = 100;
 constexpr score_t k_min_score = -k_max_score;
 
