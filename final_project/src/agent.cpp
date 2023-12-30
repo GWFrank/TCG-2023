@@ -4,9 +4,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
+#include <ctime>
 
 #include <algorithm>
 #include <iostream>
+#include <fstream>
 
 #include "agent.h"
 #include "precompute.h"
@@ -34,6 +36,12 @@ inline bool epsilon_larger(score_t a, score_t b) { return (a - b) > k_cmp_epsilo
 
 // Returns whether a and b is no further than some epsilon away
 inline bool epsilon_equal(score_t a, score_t b) { return abs(a - b) <= k_cmp_epsilon; }
+
+// Returns seconds between ts_st and ts_ed
+inline double seconds_elapsed(const timespec& ts_st, const timespec& ts_ed) {
+    return static_cast<double>(ts_ed.tv_sec + ts_ed.tv_nsec * 1e-9) -
+           static_cast<double>(ts_st.tv_sec + ts_st.tv_nsec * 1e-9);
+}
 
 static tt_entry red_transposition_table[1 << tt_size_bits];
 static tt_entry blue_transposition_table[1 << tt_size_bits];
@@ -206,6 +214,7 @@ void Agent::Generate_move(char move[]) {
 
     State current_state = State(this);
     move_t move_found = k_null_move;
+
 #ifndef NDEBUG
     score_t expected_score = 0;
     current_state.log_self();
@@ -213,17 +222,16 @@ void Agent::Generate_move(char move[]) {
 
     move_t shortcut_move = current_state.shortcut();
     if (shortcut_move == k_null_move) {
-        move_score search_result = negascout(current_state, k_min_score - 1, k_max_score + 1, k_search_depth);
-        // #ifndef NDEBUG
-        //     fprintf(stderr, "After searching...\n");
-        //     current_state.log_self();
-        // #endif
+        move_score search_result = iterative_deepening(current_state);
         move_found = search_result.first;
+
 #ifndef NDEBUG
         expected_score = search_result.second;
 #endif
+
     } else {
         move_found = shortcut_move;
+
 #ifndef NDEBUG
         expected_score = 2 * k_max_score;
 #endif
@@ -432,7 +440,55 @@ void Agent::Make_move(const int piece, const int start_point, const int end_poin
     this->m_board[end_row][end_col] = piece;
 }
 
-move_score Agent::negascout(State& state, score_t alpha, score_t beta, int depth) {
+move_score Agent::iterative_deepening(State& state) const {
+    static int move_count = 1;
+    static double total_budget = 60;
+    double time_per_move = 20;
+    std::ofstream time_usage_log;
+    time_usage_log.open("time_usage.csv", std::ios::app);
+
+    double p_time = 0, pp_time = 0;
+    std::timespec ts_id_start, ts_search_start, ts_search_end;
+    move_score search_result;
+
+    timespec_get(&ts_id_start, TIME_UTC);
+    for (int cur_depth = k_start_depth; cur_depth <= k_max_depth; cur_depth += 2) {
+        timespec_get(&ts_search_start, TIME_UTC);
+        if (seconds_elapsed(ts_id_start, ts_search_start) >= time_per_move) {
+            break;
+        }
+
+        if (pp_time != 0) {
+            double estimated_scaling = p_time / pp_time;
+            double estimated_time = p_time * estimated_scaling + seconds_elapsed(ts_id_start, ts_search_start);
+            if (estimated_time > time_per_move) {
+                break;
+            }
+            if (estimated_time > total_budget) {
+                break;
+            }
+        }
+
+        search_result = negascout(state, k_min_score - 1, k_max_score + 1, cur_depth);
+        timespec_get(&ts_search_end, TIME_UTC);
+        fprintf(stderr, "Search time for depth %d: %f s\n", cur_depth, seconds_elapsed(ts_search_start, ts_search_end));
+        time_usage_log << move_count << "," << cur_depth << "," << seconds_elapsed(ts_search_start, ts_search_end)
+                       << "\n";
+        pp_time = p_time;
+        p_time = seconds_elapsed(ts_search_start, ts_search_end);
+    }
+
+    std::timespec ts_id_end;
+    timespec_get(&ts_id_end, TIME_UTC);
+    total_budget -= seconds_elapsed(ts_id_start, ts_id_end);
+    fprintf(stderr, "Time spent on move %d: %f s\n", move_count, seconds_elapsed(ts_id_start, ts_id_end));
+    fprintf(stderr, "Time left: %f s\n", total_budget);
+    move_count++;
+    time_usage_log.close();
+    return search_result;
+}
+
+move_score Agent::negascout(State& state, score_t alpha, score_t beta, int depth) const {
     move_score result;
     result.first = k_null_move;
     if (state.is_over() || depth == 0) {
@@ -476,7 +532,19 @@ move_score Agent::negascout(State& state, score_t alpha, score_t beta, int depth
             }
         }
         // Call Star0/Star0.5/Star1
-        move_score search_ret = negascout_chance(state, alpha, beta, depth - 1);
+        move_score search_ret = negascout_chance(state, alpha, beta, depth - 1, k_star1);
+#ifndef NDEBUG
+        move_score star0_ret = negascout_chance(state, alpha, beta, depth - 1, k_star0);
+        if (!epsilon_equal(search_ret.second, star0_ret.second) && epsilon_larger(search_ret.second, alpha) &&
+            epsilon_larger(beta, search_ret.second)) {
+            fprintf(stderr, "Star0 and Star1 returns different scores\n");
+            fprintf(stderr, "Star0: %f\n", star0_ret.second);
+            fprintf(stderr, "Star1: %f\n", search_ret.second);
+            fprintf(stderr, "alpha: %f\n", alpha);
+            fprintf(stderr, "beta: %f\n", beta);
+            exit(1);
+        }
+#endif
 
         // Transposition table update
 
@@ -526,14 +594,15 @@ move_score Agent::negascout(State& state, score_t alpha, score_t beta, int depth
         for (int i = 0; i < num_moves; i++) {
             state.do_move(move_arr[i]);
 
-            // Normal negascout routine;
+            // Normal negascout routine
             search_ret = negascout(state, -hi_bound, -std::max(alpha, lo_bound), depth - 1);
-
             v_i = -search_ret.second;
-            if (v_i > lo_bound) {
-                if (hi_bound >= beta || depth < 3 || epsilon_larger(v_i, beta)) {
+
+            if (epsilon_larger(v_i, lo_bound)) {
+                if (epsilon_equal(hi_bound, beta) || depth < 3 || epsilon_larger(v_i, beta)) {
                     lo_bound = v_i;
                 } else {
+                    // re-search
                     search_ret = negascout(state, -beta, -v_i, depth - 1);
                     lo_bound = -search_ret.second;
                 }
@@ -541,7 +610,7 @@ move_score Agent::negascout(State& state, score_t alpha, score_t beta, int depth
                 result.second = lo_bound;
             }
             state.undo();
-            if (lo_bound >= k_max_score || epsilon_larger(lo_bound, beta)) {
+            if (epsilon_equal(lo_bound, k_max_score) || epsilon_larger(lo_bound, beta)) {
                 return result;
             }
             hi_bound = std::max(alpha, lo_bound) + k_window_epsilon;  // for null-window
@@ -550,38 +619,54 @@ move_score Agent::negascout(State& state, score_t alpha, score_t beta, int depth
     }
 }
 
-move_score Agent::negascout_chance(State& state, score_t alpha, score_t beta, int depth) {
-    move_score result, tmp_ret;
-    result.first = -1;
-    result.second = 0;
-    const int total_choice = k_piece_num;
-    // score_t A = total_choice * (alpha - k_max_score) + k_max_score;
-    // score_t B = total_choice * (beta - k_min_score) + k_min_score;
-    // score_t lo_bound = k_min_score, hi_bound = k_max_score;
+move_score Agent::negascout_chance(State& state, score_t alpha, score_t beta, int depth, int mode) const {
+    move_score result{k_null_move, 0};
+    if (mode == k_star0) {
+        move_score tmp_ret;
+        const int total_choice = k_piece_num;
+        for (int dice_roll = 1; dice_roll <= total_choice; dice_roll++) {
+            state.set_dice(dice_roll);
+            tmp_ret = negascout(state, k_min_score, k_max_score, depth);
+            state.unset_dice();
+            score_t v_i = tmp_ret.second;
+            result.second += v_i;
+        }
+        result.second = result.second / static_cast<score_t>(total_choice);
 
-    for (int dice_roll = 1; dice_roll <= total_choice; dice_roll++) {
-        state.set_dice(dice_roll);
-        tmp_ret = negascout(state, k_min_score, k_max_score, depth);
-        // tmp_ret = negascout(state, std::max(A, k_min_score), std::min(B, k_max_score), depth);
-        score_t v_i = tmp_ret.second;
+    } else if (mode == k_star1) {
+        move_score tmp_ret;
+        const int total_choice = k_piece_num;
+        score_t A = total_choice * (alpha - k_max_score) + k_max_score;
+        score_t B = total_choice * (beta - k_min_score) + k_min_score;
+        score_t lo_bound = k_min_score, hi_bound = k_max_score;
 
-        // lo_bound = lo_bound + (v_i - lo_bound) / total_choice;
-        // hi_bound = hi_bound + (v_i - hi_bound) / total_choice;
-        // if (epsilon_larger(v_i, B)) {
-        //     result.second = lo_bound;
-        //     goto negascout_chance_return;
-        // }
-        // if (epsilon_larger(A, v_i)) {
-        //     result.second = hi_bound;
-        //     goto negascout_chance_return;
-        // }
-        result.second += v_i;
-        // A = A + k_max_score - v_i;
-        // B = B + k_min_score - v_i;
-        state.unset_dice();
+        for (int dice_roll = 1; dice_roll <= total_choice; dice_roll++) {
+            state.set_dice(dice_roll);
+            // tmp_ret = negascout(state, k_min_score, k_max_score, depth);
+            tmp_ret = negascout(state, std::max(A, k_min_score), std::min(B, k_max_score), depth);
+            state.unset_dice();
+            score_t v_i = tmp_ret.second;
+
+            lo_bound = lo_bound + (v_i - k_min_score) / total_choice;
+            hi_bound = hi_bound + (v_i - k_max_score) / total_choice;
+            if (epsilon_larger(v_i, B)) {
+                result.second = lo_bound;
+                return result;
+            }
+            if (epsilon_larger(A, v_i)) {
+                result.second = hi_bound;
+                return result;
+            }
+            result.second += v_i;
+            A = A + k_max_score - v_i;
+            B = B + k_min_score - v_i;
+        }
+        result.second = result.second / static_cast<score_t>(total_choice);
+
+    } else {
+        fprintf(stderr, "Invalid mode: %d\n", mode);
+        exit(1);
     }
-    result.second = result.second / static_cast<score_t>(total_choice);
-negascout_chance_return:
     return result;
 }
 

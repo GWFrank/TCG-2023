@@ -33,12 +33,14 @@ constexpr int k_off_board_pos = -1;
 constexpr int k_blue_goal = 0;
 constexpr int k_red_goal = k_board_size * k_board_size - 1;
 constexpr score_t k_window_epsilon = 0.001;
-constexpr score_t k_cmp_epsilon = 0.001;
+constexpr score_t k_cmp_epsilon = 0.00001;
 constexpr int k_rounding_decimals = 2;
 constexpr move_t k_null_move = -1;
+constexpr int k_star0 = 0;
+constexpr int k_star1 = 1;
 
 // Algorithm-related
-constexpr int k_search_depth = 4;
+constexpr int k_start_depth = 4, k_max_depth = 30;
 constexpr score_t k_max_score = 100;
 constexpr score_t k_min_score = -k_max_score;
 
@@ -85,8 +87,9 @@ class Agent {
     int referee(int piece, int* src, int* dst);
 
     // Game Algos
-    move_score negascout(State& state, score_t alpha, score_t beta, int depth);
-    move_score negascout_chance(State& state, score_t alpha, score_t beta, int depth);
+    move_score iterative_deepening(State& state) const;
+    move_score negascout(State& state, score_t alpha, score_t beta, int depth) const;
+    move_score negascout_chance(State& state, score_t alpha, score_t beta, int depth, int mode) const;
 
     friend State;
 };
