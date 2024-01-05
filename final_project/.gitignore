@@ -3,3 +3,4 @@ agent
 agent_*
 *.csv
 *.sha1sum
+*.html
